@@ -1,5 +1,11 @@
+#include "del/ast.h"
+#include "del/exception.h"
+#include "del/lexer.h"
 #include "del/parser.h"
+#include "del/symbol_table.h"
+#include "del/template_engine.h"
 #include "del/version.h"
+
 
 #include <cassert>
 #include <cstdlib>

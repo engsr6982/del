@@ -17,9 +17,20 @@ configure_file(
 )
 
 set(DEL_SOURCES
+        src/del/version.h
         src/del/macro.h
+        src/del/exception.h
+        src/del/exception.cc
+        src/del/lexer.h
+        src/del/lexer.cc
+        src/del/symbol_table.h
+        src/del/symbol_table.cc
+        src/del/ast.h
+        src/del/ast.cc
         src/del/parser.h
         src/del/parser.cc
+        src/del/template_engine.h
+        src/del/template_engine.cc
 )
 
 add_library(del STATIC ${DEL_SOURCES})
