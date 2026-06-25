@@ -793,7 +793,7 @@ public:
       if (!infix_fn) {
         return left;
       }
-      NextToken();
+      NextToken(); // 将 peek_token_ 推进为当前的 cur_token_ 运算符
       left = (this->*infix_fn)(std::move(left));
     }
 
@@ -898,11 +898,9 @@ private:
     std::string_view lit = cur_token_.literal;
     if (lit.find('.') != std::string_view::npos) {
       double val = std::stod(std::string(lit));
-      NextToken();
       return std::make_unique<NumberLiteralNode>(val);
     } else {
       int64_t val = std::stoll(std::string(lit));
-      NextToken();
       return std::make_unique<NumberLiteralNode>(val);
     }
   }
@@ -928,39 +926,31 @@ private:
         }
       }
     }
-    NextToken();
     return std::make_unique<StringLiteralNode>(std::move(unescaped));
   }
 
   std::unique_ptr<ASTNode> ParseIdentifier() {
     std::string_view lit = cur_token_.literal;
     if (lit == "true") {
-      NextToken();
       return std::make_unique<BooleanLiteralNode>(true);
     } else if (lit == "false") {
-      NextToken();
       return std::make_unique<BooleanLiteralNode>(false);
     } else if (lit == "null") {
-      NextToken();
       return std::make_unique<NullLiteralNode>();
     }
-    auto node = std::make_unique<IdentifierNode>(std::string(lit));
-    NextToken();
-    return node;
+    return std::make_unique<IdentifierNode>(std::string(lit));
   }
 
   std::unique_ptr<ASTNode> ParsePointer() {
     std::string_view lit       = cur_token_.literal;
     bool             is_source = (lit[0] == '@');
     std::string      path      = std::string(lit.substr(1)); // 保留路径开头的 '/'
-    auto             node      = std::make_unique<PointerNode>(is_source, std::move(path));
-    NextToken();
-    return node;
+    return std::make_unique<PointerNode>(is_source, std::move(path));
   }
 
   std::unique_ptr<ASTNode> ParsePrefixExpression() {
     std::string op = std::string(cur_token_.literal);
-    NextToken();
+    NextToken(); // 消费操作符本身，进入右操作数上下文
     auto right = ParseExpression(Precedence::kPrefix);
     return std::make_unique<PrefixNode>(std::move(op), std::move(right));
   }
@@ -968,10 +958,10 @@ private:
   std::unique_ptr<ASTNode> ParseGroupedExpression() {
     NextToken(); // 消费 '('
     auto expr = ParseExpression(Precedence::kLowest);
-    if (cur_token_.type != TokenType::kRparen) {
-      throw SyntaxError("Expected closing parenthesis ')'", cur_token_.line, cur_token_.column);
+    if (peek_token_.type != TokenType::kRparen) {
+      throw SyntaxError("Expected closing parenthesis ')'", peek_token_.line, peek_token_.column);
     }
-    NextToken(); // 消费 ')'
+    NextToken(); // 将 ')' 推进为当前的 cur_token_，完成括号闭合
     return expr;
   }
 
@@ -979,7 +969,7 @@ private:
   std::unique_ptr<ASTNode> ParseInfixExpression(std::unique_ptr<ASTNode> left) {
     std::string op   = std::string(cur_token_.literal);
     Precedence  prec = GetCurPrecedence();
-    NextToken();
+    NextToken(); // 消费运算符本身
     auto right = ParseExpression(prec);
     return std::make_unique<InfixNode>(std::move(op), std::move(left), std::move(right));
   }
@@ -1016,11 +1006,11 @@ private:
   std::unique_ptr<ASTNode> ParseTernaryExpression(std::unique_ptr<ASTNode> left) {
     NextToken(); // 消费 '?'
     auto true_expr = ParseExpression(Precedence::kLowest);
-    if (cur_token_.type != TokenType::kColon) {
-      throw SyntaxError("Expected ':' in ternary condition", cur_token_.line, cur_token_.column);
+    if (peek_token_.type != TokenType::kColon) {
+      throw SyntaxError("Expected ':' in ternary condition", peek_token_.line, peek_token_.column);
     }
-    NextToken(); // 消费 ':'
-    // 三元运算符是右结合
+    NextToken(); // 推进使 cur_token_ 变为 ':'
+    NextToken(); // 消费 ':'，使 cur_token_ 变为 false 分支的起点
     auto false_expr = ParseExpression(Precedence::kTernary);
     return std::make_unique<TernaryNode>(std::move(left), std::move(true_expr), std::move(false_expr));
   }
@@ -1041,15 +1031,16 @@ private:
     std::vector<std::unique_ptr<ASTNode>> args;
     if (cur_token_.type != TokenType::kRparen) {
       args.push_back(ParseExpression(Precedence::kLowest));
-      while (cur_token_.type == TokenType::kComma) {
-        NextToken(); // 消费 ','
+      while (peek_token_.type == TokenType::kComma) {
+        NextToken(); // 消费参数之间的逗号的前置 Token，使 cur_token_ 变为 ','
+        NextToken(); // 消费 ','，使 cur_token_ 变为下一个参数
         args.push_back(ParseExpression(Precedence::kLowest));
       }
     }
-    if (cur_token_.type != TokenType::kRparen) {
-      throw SyntaxError("Expected ')' at end of function arguments", cur_token_.line, cur_token_.column);
+    if (peek_token_.type != TokenType::kRparen) {
+      throw SyntaxError("Expected ')' at end of function arguments", peek_token_.line, peek_token_.column);
     }
-    NextToken(); // 消费 ')'
+    NextToken(); // 推进使 ')' 成为当前的 cur_token_
     return std::make_unique<CallNode>(std::move(func_name), std::move(args));
   }
 
