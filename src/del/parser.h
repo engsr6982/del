@@ -382,6 +382,9 @@ inline void EnsureNumber(nlohmann::json const& v, std::string_view context) {
 
 inline void EnsureSameType(nlohmann::json const& lhs, nlohmann::json const& rhs, std::string_view context) {
   if (lhs.type() != rhs.type()) {
+    if (lhs.is_number() && rhs.is_number()) {
+      return;
+    }
     throw RuntimeError(
         std::string(context) + " requires both operands to be of the exact same type. Got " + lhs.dump() + " and "
         + rhs.dump()
