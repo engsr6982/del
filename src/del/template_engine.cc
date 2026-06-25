@@ -211,15 +211,9 @@ CompiledTemplate TemplateEngine::Compile(const nlohmann::ordered_json& template_
 
     if (expr_val.is_string()) {
       std::string expr_str = expr_val.get<std::string>();
-      Lexer       lexer(expr_str);
+      Lexer       lexer(expr_str, path);
       Parser      parser(lexer);
-      try {
-        instr.compiled_ast = parser.ParseExpression(Precedence::kLowest);
-      } catch (const SyntaxError& e) {
-        throw std::runtime_error(
-            std::format("Template compilation failed at target path '{}': {}\nSource: {}", path, e.what(), expr_str)
-        );
-      }
+      instr.compiled_ast = parser.ParseExpression(Precedence::kLowest);
     } else {
       instr.direct_value = expr_val;
     }
@@ -234,17 +228,11 @@ nlohmann::json TemplateEngine::Execute(const CompiledTemplate& ct, const nlohman
   EvaluationContext ctx{source_json, target_json, {}, symbol_table_};
 
   for (const auto& instr : ct.instructions) {
-    try {
-      if (instr.compiled_ast) {
-        nlohmann::json result = instr.compiled_ast->Evaluate(ctx);
-        MountTargetValue(target_json, instr.target_pointer_path, std::move(result));
-      } else {
-        MountTargetValue(target_json, instr.target_pointer_path, instr.direct_value);
-      }
-    } catch (const RuntimeError& e) {
-      throw std::runtime_error(
-          "Runtime execution failed at target path '" + instr.target_pointer_path + "': " + e.what()
-      );
+    if (instr.compiled_ast) {
+      nlohmann::json result = instr.compiled_ast->Evaluate(ctx);
+      MountTargetValue(target_json, instr.target_pointer_path, std::move(result));
+    } else {
+      MountTargetValue(target_json, instr.target_pointer_path, instr.direct_value);
     }
   }
   return target_json;
@@ -256,7 +244,7 @@ void TemplateEngine::MountTargetValue(nlohmann::json& target, const std::string&
     // nlohmann::json 的 operator[] 遇到不存在的父路径会自动构建嵌套对象
     target[ptr] = std::move(value);
   } catch (const std::exception& e) {
-    throw std::runtime_error("Failed to mount target path '" + path_str + "': " + e.what());
+    throw std::runtime_error(std::format("Failed to mount target path '{}': {}", path_str, e.what()));
   }
 }
 

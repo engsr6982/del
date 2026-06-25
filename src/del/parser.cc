@@ -16,9 +16,11 @@ std::unique_ptr<ASTNode> Parser::ParseExpression(Precedence precedence) {
   auto prefix_fn = GetPrefixFn(cur_token_.type);
   if (!prefix_fn) {
     throw SyntaxError(
-        "No prefix parse function for token: " + std::string(cur_token_.literal),
+        std::format("No prefix parse function for token: '{}'", cur_token_.literal),
         cur_token_.line,
-        cur_token_.column
+        cur_token_.column,
+        lexer_.PathKey(),
+        lexer_.Input()
     );
   }
 
@@ -186,7 +188,13 @@ std::unique_ptr<ASTNode> Parser::ParseGroupedExpression() {
   NextToken(); // 消费 '('
   auto expr = ParseExpression(Precedence::kLowest);
   if (peek_token_.type != TokenType::kRparen) {
-    throw SyntaxError("Expected closing parenthesis ')'", peek_token_.line, peek_token_.column);
+    throw SyntaxError(
+        "Expected closing parenthesis ')'",
+        peek_token_.line,
+        peek_token_.column,
+        lexer_.PathKey(),
+        lexer_.Input()
+    );
   }
   NextToken(); // 将 ')' 推进为当前的 cur_token_，完成括号闭合
   return expr;
@@ -234,7 +242,13 @@ std::unique_ptr<ASTNode> Parser::ParseTernaryExpression(std::unique_ptr<ASTNode>
   NextToken(); // 消费 '?'
   auto true_expr = ParseExpression(Precedence::kLowest);
   if (peek_token_.type != TokenType::kColon) {
-    throw SyntaxError("Expected ':' in ternary condition", peek_token_.line, peek_token_.column);
+    throw SyntaxError(
+        "Expected ':' in ternary condition",
+        peek_token_.line,
+        peek_token_.column,
+        lexer_.PathKey(),
+        lexer_.Input()
+    );
   }
   NextToken(); // 推进使 cur_token_ 变为 ':'
   NextToken(); // 消费 ':'，使 cur_token_ 变为 false 分支的起点
@@ -251,7 +265,13 @@ std::unique_ptr<ASTNode> Parser::ParsePipelineExpression(std::unique_ptr<ASTNode
 std::unique_ptr<ASTNode> Parser::ParseCallExpression(std::unique_ptr<ASTNode> left) {
   auto ident_node = dynamic_cast<IdentifierNode*>(left.get());
   if (!ident_node) {
-    throw SyntaxError("Call operator '(' must follow a function name", cur_token_.line, cur_token_.column);
+    throw SyntaxError(
+        "Call operator '(' must follow a function name",
+        cur_token_.line,
+        cur_token_.column,
+        lexer_.PathKey(),
+        lexer_.Input()
+    );
   }
   std::string func_name = ident_node->name();
   NextToken(); // 消费 '('
@@ -263,18 +283,30 @@ std::unique_ptr<ASTNode> Parser::ParseCallExpression(std::unique_ptr<ASTNode> le
       NextToken(); // 消费 ','，使 cur_token_ 变为下一个参数
       args.push_back(ParseExpression(Precedence::kLowest));
     }
+    if (peek_token_.type != TokenType::kRparen) {
+      throw SyntaxError(
+          "Expected ')' at end of function arguments",
+          peek_token_.line,
+          peek_token_.column,
+          lexer_.PathKey(),
+          lexer_.Input()
+      );
+    }
+    NextToken(); // 将 ')' 推进为 cur_token_
   }
-  if (peek_token_.type != TokenType::kRparen) {
-    throw SyntaxError("Expected ')' at end of function arguments", peek_token_.line, peek_token_.column);
-  }
-  NextToken(); // 推进使 ')' 成为当前的 cur_token_
   return std::make_unique<CallNode>(std::move(func_name), std::move(args));
 }
 
 std::unique_ptr<ASTNode> Parser::ParseLambdaExpression(std::unique_ptr<ASTNode> left) {
   auto ident_node = dynamic_cast<IdentifierNode*>(left.get());
   if (!ident_node) {
-    throw SyntaxError("Left side of lambda '->' must be a single identifier", cur_token_.line, cur_token_.column);
+    throw SyntaxError(
+        "Left side of lambda '->' must be a single identifier",
+        cur_token_.line,
+        cur_token_.column,
+        lexer_.PathKey(),
+        lexer_.Input()
+    );
   }
   std::string param_name = ident_node->name();
   NextToken(); // 消费 '->'

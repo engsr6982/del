@@ -12,9 +12,17 @@ class SyntaxError final : public std::exception {
   std::string full_message_;
 
 public:
-  explicit SyntaxError(std::string_view message, size_t line, size_t col);
+  explicit SyntaxError(
+      std::string_view message,
+      size_t           line,
+      size_t           col,
+      std::string_view path_key = "",
+      std::string_view expr     = ""
+  );
 
   const char* what() const override;
+
+  std::string const& message() const;
 
   size_t line() const;
 
@@ -24,9 +32,10 @@ public:
 
 class RuntimeError final : public std::exception {
   std::string message_;
+  std::string full_message_;
 
 public:
-  explicit RuntimeError(std::string message);
+  explicit RuntimeError(std::string message, std::string_view path_key = "");
 
   const char* what() const override;
 };

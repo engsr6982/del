@@ -165,7 +165,7 @@ int main(int argc, char** argv) {
     nlohmann::json result_1 = engine.Execute(compiled_t1, source_1);
     std::cout << result_1.dump(2) << std::endl;
   } catch (const std::exception& e) {
-    std::cerr << "Scenario 1 Error: " << e.what() << std::endl;
+    std::cerr << e.what() << std::endl;
   }
 
   std::cout << "\n================= 全场景清洗 =================" << std::endl;
@@ -202,7 +202,7 @@ int main(int argc, char** argv) {
     nlohmann::json result_2 = engine.Execute(compiled_t2, source_2);
     std::cout << result_2.dump(2) << std::endl;
   } catch (const std::exception& e) {
-    std::cerr << "Scenario 2 Error: " << e.what() << std::endl;
+    std::cerr << e.what() << std::endl;
   }
 
   std::cout << "\n================= 严格类型匹配 =================" << std::endl;

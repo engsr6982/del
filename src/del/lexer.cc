@@ -1,5 +1,6 @@
 #include "lexer.h"
 #include "exception.h"
+#include <format>
 
 namespace del {
 
@@ -198,7 +199,7 @@ Token Lexer::NextToken() {
       ConsumeChar();
     }
     if (pos_ >= input_.size()) {
-      throw SyntaxError("Unterminated string literal", line_, start_col);
+      throw SyntaxError("Unterminated string literal", line_, start_col, path_key_, input_);
     }
     ConsumeChar(); // right " or '
     return Token{TokenType::kString, input_.substr(start_pos, pos_ - start_pos), line_, start_col};
@@ -229,7 +230,7 @@ Token Lexer::NextToken() {
     return Token{TokenType::kIdentifier, input_.substr(start_pos, pos_ - start_pos), line_, start_col};
   }
 
-  throw SyntaxError(std::string("Unexpected character: ") + ch, line_, start_col);
+  throw SyntaxError(std::format("Unexpected character: '{}'", ch), line_, start_col, path_key_, input_);
 }
 
 } // namespace del
