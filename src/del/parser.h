@@ -134,9 +134,9 @@ public:
       return Token{TokenType::kEof, "", line_, col_};
     }
 
-    auto start_pos = pos_;
-    auto start_col = col_;
-    auto ch        = CurrentChar();
+    auto const start_pos = pos_;
+    auto const start_col = col_;
+    auto const ch        = CurrentChar();
 
     // @/
     if (ch == '@' && PeekChar() == '/') {
@@ -268,18 +268,18 @@ public:
     }
 
     // string literal
-    if (ch == '"') {
-      ConsumeChar(); // left "
-      while (pos_ < input_.size() && CurrentChar() != '"') {
-        if (CurrentChar() == '\\' && PeekChar() == '"') {
-          ConsumeChar(); // skip \"
+    if (ch == '"' || ch == '\'') {
+      ConsumeChar(); // left " or '
+      while (pos_ < input_.size() && CurrentChar() != ch) {
+        if (CurrentChar() == '\\' && PeekChar() == ch) {
+          ConsumeChar(); // skip \" or \'
         }
         ConsumeChar();
       }
       if (pos_ >= input_.size()) {
         throw SyntaxError("Unterminated string literal", line_, start_col);
       }
-      ConsumeChar(); // right "
+      ConsumeChar(); // right " or '
       return Token{TokenType::kString, input_.substr(start_pos, pos_ - start_pos), line_, start_col};
     }
 
