@@ -3,3 +3,4 @@ bin
 .vscode
 .idea
 .cache
+/src/del/version.h

@@ -1,11 +1,20 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(del VERSION 0.1 LANGUAGES CXX)
+project(del VERSION 0.1.0 LANGUAGES CXX)
+
+cmake_policy(SET CMP0135 NEW)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+option(DEL_EXTERN_JSON_LIB "Use external json library" OFF)
+
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/version.h.in"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/del/version.h"
+)
 
 set(DEL_SOURCES
         src/del/macro.h
@@ -26,6 +35,15 @@ target_compile_definitions(del PUBLIC
         _UNICODE
         $<$<CONFIG:Debug>:DEL_DEBUG>
 )
+
+if (NOT DEL_EXTERN_JSON_LIB)
+    message(STATUS "Using internal bundled json library...")
+    include(FetchContent)
+    FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
+    FetchContent_MakeAvailable(json)
+
+    target_link_libraries(del PUBLIC nlohmann_json::nlohmann_json)
+endif()
 
 if (MSVC)
     target_compile_options(del PUBLIC /utf-8 /W4 /sdl)

@@ -1,0 +1,11 @@
+#pragma once
+#include <string_view>
+
+namespace del {
+
+static constexpr std::string_view kVersion      = "@PROJECT_VERSION@";
+static constexpr int              kVersionMajor = @PROJECT_VERSION_MAJOR@;
+static constexpr int              kVersionMinor = @PROJECT_VERSION_MINOR@;
+static constexpr int              kVersionPatch = @PROJECT_VERSION_PATCH@;
+
+} // namespace del
