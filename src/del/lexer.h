@@ -60,6 +60,8 @@ class Lexer {
 
   bool IsDelimiter(char c) const;
 
+  bool IsPointerDelimiter(char c) const;
+
 public:
   constexpr explicit Lexer(std::string_view input) : input_(input) {}
 

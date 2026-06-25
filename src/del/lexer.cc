@@ -42,6 +42,11 @@ bool Lexer::IsDelimiter(char c) const {
       || c == ':' || c == '=' || c == '!' || c == '<' || c == '>' || c == '&' || c == '+' || c == '-' || c == '*'
       || c == '/' || c == kEofChar;
 }
+bool Lexer::IsPointerDelimiter(char c) const {
+  return c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == ',' || c == '(' || c == ')' || c == '|' || c == '?'
+      || c == ':' || c == '=' || c == '!' || c == '<' || c == '>' || c == '&' || c == '+' || c == '-' || c == '*'
+      || c == kEofChar;
+}
 
 
 Token Lexer::NextToken() {
@@ -58,7 +63,7 @@ Token Lexer::NextToken() {
   if (ch == '@' && PeekChar() == '/') {
     ConsumeChar(); // '@'
     ConsumeChar(); // '/'
-    while (pos_ < input_.size() && !IsDelimiter(CurrentChar())) {
+    while (pos_ < input_.size() && !IsPointerDelimiter(CurrentChar())) {
       ConsumeChar();
     }
     return Token{TokenType::kSourcePointer, input_.substr(start_pos, pos_ - start_pos), line_, start_col};
@@ -67,7 +72,7 @@ Token Lexer::NextToken() {
   if (ch == '$' && PeekChar() == '/') {
     ConsumeChar(); // '$'
     ConsumeChar(); // '/'
-    while (pos_ < input_.size() && !IsDelimiter(CurrentChar())) {
+    while (pos_ < input_.size() && !IsPointerDelimiter(CurrentChar())) {
       ConsumeChar();
     }
     return Token{TokenType::kTargetPointer, input_.substr(start_pos, pos_ - start_pos), line_, start_col};
