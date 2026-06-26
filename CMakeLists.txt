@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 
 option(DEL_EXTERN_JSON_LIB "Use external json library" OFF)
 
@@ -58,8 +59,6 @@ endif()
 
 if (MSVC)
     target_compile_options(del PUBLIC /utf-8 /W4 /sdl)
-    set_property(TARGET del PROPERTY
-            MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 else()
     target_compile_options(del PUBLIC -Wall -Wextra)
 endif()
