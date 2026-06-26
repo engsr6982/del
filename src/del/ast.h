@@ -2,22 +2,12 @@
 #include "macro.h"
 
 #include <string>
-#include <string_view>
-#include <unordered_map>
 
 #include <nlohmann/json.hpp>
 
 namespace del {
 
-class ASTNode;
-class SymbolTable;
-
-struct EvaluationContext {
-  nlohmann::json const&                                source;
-  nlohmann::json&                                      target;
-  std::unordered_map<std::string_view, nlohmann::json> locals; // 局部闭包变量表 (lambda)
-  SymbolTable const&                                   symbol_table;
-};
+struct EvaluationContext;
 
 class ASTNode {
 public:
@@ -143,19 +133,33 @@ private:
   std::unique_ptr<ASTNode> false_expr_;
 };
 
-class LambdaNode : public ASTNode {
+class TupleNode : public ASTNode {
 public:
-  LambdaNode(std::string param_name, std::unique_ptr<ASTNode> body);
+  explicit TupleNode(std::vector<std::unique_ptr<ASTNode>> elements);
 
-  const std::string& param_name() const;
-  const ASTNode&     body() const;
+  const std::vector<std::unique_ptr<ASTNode>>& elements() const;
 
   nlohmann::json Evaluate(EvaluationContext&) const override;
 
   std::string ToString() const override;
 
 private:
-  std::string              param_name_;
+  std::vector<std::unique_ptr<ASTNode>> elements_;
+};
+
+class LambdaNode : public ASTNode {
+public:
+  LambdaNode(std::vector<std::string> param_names, std::unique_ptr<ASTNode> body);
+
+  const std::vector<std::string>& param_names() const;
+  const ASTNode&                  body() const;
+
+  nlohmann::json Evaluate(EvaluationContext&) const override;
+
+  std::string ToString() const override;
+
+private:
+  std::vector<std::string> param_names_;
   std::unique_ptr<ASTNode> body_;
 };
 

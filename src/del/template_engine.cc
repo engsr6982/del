@@ -1,14 +1,16 @@
 #include "template_engine.h"
 #include "ast.h"
+#include "context.h"
 #include "exception.h"
 #include "lexer.h"
 #include "parser.h"
+#include <memory>
 
 
 namespace del {
 
 void RegisterBuiltins(SymbolTable& table) {
-  // 1. remove_char(str, target_char)
+  // remove_char(str, target_char)
   table.Register("remove_char", [](const auto& args, auto& ctx, auto eval) -> nlohmann::json {
     if (args.size() != 2) throw RuntimeError("remove_char expects exactly 2 arguments");
     auto s = eval(*args[0], ctx);
@@ -29,7 +31,7 @@ void RegisterBuiltins(SymbolTable& table) {
     return res;
   });
 
-  // 2. to_lower(str)
+  // to_lower(str)
   table.Register("to_lower", [](const auto& args, auto& ctx, auto eval) -> nlohmann::json {
     if (args.size() != 1) throw RuntimeError("to_lower expects exactly 1 argument");
     auto s = eval(*args[0], ctx);
@@ -39,7 +41,7 @@ void RegisterBuiltins(SymbolTable& table) {
     return str;
   });
 
-  // 3. to_upper(str)
+  // to_upper(str)
   table.Register("to_upper", [](const auto& args, auto& ctx, auto eval) -> nlohmann::json {
     if (args.size() != 1) throw RuntimeError("to_upper expects exactly 1 argument");
     auto s = eval(*args[0], ctx);
@@ -49,7 +51,7 @@ void RegisterBuiltins(SymbolTable& table) {
     return str;
   });
 
-  // 4. trim(str)
+  // trim(str)
   table.Register("trim", [](const auto& args, auto& ctx, auto eval) -> nlohmann::json {
     if (args.size() != 1) throw RuntimeError("trim expects exactly 1 argument");
     auto s = eval(*args[0], ctx);
@@ -61,7 +63,7 @@ void RegisterBuiltins(SymbolTable& table) {
     return str.substr(first, (last - first + 1));
   });
 
-  // 5. remove_suffix(str, suffix)
+  // remove_suffix(str, suffix)
   table.Register("remove_suffix", [](const auto& args, auto& ctx, auto eval) -> nlohmann::json {
     if (args.size() != 2) throw RuntimeError("remove_suffix expects exactly 2 arguments");
     auto s   = eval(*args[0], ctx);
@@ -77,21 +79,14 @@ void RegisterBuiltins(SymbolTable& table) {
     return str;
   });
 
-  // 6. is_valid(val)
-  table.Register("is_valid", [](const auto& args, auto& ctx, auto eval) -> nlohmann::json {
-    if (args.size() != 1) throw RuntimeError("is_valid expects exactly 1 argument");
-    auto val = eval(*args[0], ctx);
-    return !val.is_null();
-  });
-
-  // 7. is_null(val)
+  // is_null(val)
   table.Register("is_null", [](const auto& args, auto& ctx, auto eval) -> nlohmann::json {
     if (args.size() != 1) throw RuntimeError("is_null expects exactly 1 argument");
     auto val = eval(*args[0], ctx);
     return val.is_null();
   });
 
-  // 8. entry(key, val) -> 打包生成一个单键值对的 JSON 节点
+  // entry(key, val) -> 打包生成一个单键值对的 JSON 节点
   table.Register("entry", [](const auto& args, auto& ctx, auto eval) -> nlohmann::json {
     if (args.size() != 2) throw RuntimeError("entry expects exactly 2 arguments");
     auto k = eval(*args[0], ctx);
@@ -102,27 +97,7 @@ void RegisterBuiltins(SymbolTable& table) {
     return obj;
   });
 
-  // 9. key(kv) -> 获取 entry 的 Key
-  table.Register("key", [](const auto& args, auto& ctx, auto eval) -> nlohmann::json {
-    if (args.size() != 1) throw RuntimeError("key expects exactly 1 argument");
-    auto kv = eval(*args[0], ctx);
-    if (!kv.is_object() || kv.size() != 1) {
-      throw RuntimeError("key expects a single-entry object");
-    }
-    return kv.begin().key();
-  });
-
-  // 10. val(kv) -> 获取 entry 的 Value
-  table.Register("val", [](const auto& args, auto& ctx, auto eval) -> nlohmann::json {
-    if (args.size() != 1) throw RuntimeError("val expects exactly 1 argument");
-    auto kv = eval(*args[0], ctx);
-    if (!kv.is_object() || kv.size() != 1) {
-      throw RuntimeError("val expects a single-entry object");
-    }
-    return kv.begin().value();
-  });
-
-  // 11. map(array, lambda) 高阶映射
+  // map(array, (element, idx) -> ...)
   table.Register("map", [](const auto& args, auto& ctx, auto eval) -> nlohmann::json {
     if (args.size() != 2) throw RuntimeError("map expects exactly 2 arguments (array, lambda)");
     auto arr_val = eval(*args[0], ctx);
@@ -131,29 +106,26 @@ void RegisterBuiltins(SymbolTable& table) {
     const auto* lambda = dynamic_cast<const LambdaNode*>(args[1]->GetUnderlyingNode());
     if (!lambda) throw RuntimeError("map's second argument must be a lambda expression");
 
-    nlohmann::json   result_arr = nlohmann::json::array();
-    std::string_view param      = lambda->param_name();
+    const auto& params = lambda->param_names();
+    if (params.empty() || params.size() > 2) {
+      throw RuntimeError("map's lambda must accept 1 or 2 parameters (element [, idx])");
+    }
 
-    for (const auto& item : arr_val) {
-      // 本地作用域的动态局部绑定，保护外层同名局部变量
-      bool           had_local = ctx.locals.contains(param);
-      nlohmann::json prev_val;
-      if (had_local) prev_val = std::move(ctx.locals[param]);
+    ScopeGuard scope(ctx);
 
-      ctx.locals[param] = item;
-      result_arr.push_back(lambda->body().Evaluate(ctx));
-
-      // 作用域析构还原
-      if (had_local) {
-        ctx.locals[param] = std::move(prev_val);
-      } else {
-        ctx.locals.erase(param);
+    nlohmann::json result_arr = nlohmann::json::array();
+    for (size_t idx = 0; idx < arr_val.size(); ++idx) {
+      scope.Bind(params[0], arr_val[idx]);
+      if (params.size() > 1) {
+        scope.Bind(params[1], idx);
       }
+
+      result_arr.push_back(lambda->body().Evaluate(ctx));
     }
     return result_arr;
   });
 
-  // 12. map_object(object, lambda) 对象高阶映射
+  // map_object(object, lambda) 对象高阶映射
   table.Register("map_object", [](const auto& args, auto& ctx, auto eval) -> nlohmann::json {
     if (args.size() != 2) throw RuntimeError("map_object expects exactly 2 arguments (object, lambda)");
     auto obj_val = eval(*args[0], ctx);
@@ -162,34 +134,87 @@ void RegisterBuiltins(SymbolTable& table) {
     const auto* lambda = dynamic_cast<const LambdaNode*>(args[1]->GetUnderlyingNode());
     if (!lambda) throw RuntimeError("map_object's second argument must be a lambda expression");
 
-    nlohmann::json   result_obj = nlohmann::json::object();
-    std::string_view param      = lambda->param_name();
+    const auto& params = lambda->param_names();
+    if (params.size() < 2 || params.size() > 3) {
+      throw RuntimeError("map_object's lambda must accept 2 or 3 parameters (key, val [, idx])");
+    }
 
-    for (auto it = obj_val.begin(); it != obj_val.end(); ++it) {
-      // 将当前的 key-value 打包为单键对象传递给 Lambda
-      nlohmann::json kv_entry = nlohmann::json::object();
-      kv_entry[it.key()]      = it.value();
+    ScopeGuard scope(ctx);
 
-      bool           had_local = ctx.locals.contains(param);
-      nlohmann::json prev_val;
-      if (had_local) prev_val = std::move(ctx.locals[param]);
+    nlohmann::json result_obj = nlohmann::json::object();
+    size_t         idx        = 0;
+    for (auto it = obj_val.begin(); it != obj_val.end(); ++it, ++idx) {
+      scope.Bind(params[0], it.key());
+      scope.Bind(params[1], it.value());
+      if (params.size() > 2) {
+        scope.Bind(params[2], idx);
+      }
 
-      ctx.locals[param]        = std::move(kv_entry);
       nlohmann::json entry_res = lambda->body().Evaluate(ctx);
-
       if (!entry_res.is_object() || entry_res.size() != 1) {
         throw RuntimeError("map_object lambda must return a single-entry object constructed via entry()");
       }
-
       result_obj[entry_res.begin().key()] = entry_res.begin().value();
-
-      if (had_local) {
-        ctx.locals[param] = std::move(prev_val);
-      } else {
-        ctx.locals.erase(param);
-      }
     }
     return result_obj;
+  });
+
+  // 辅助函数：构造空容器
+  table.Register("obj", [](const auto&, auto&, auto) -> nlohmann::json { return nlohmann::json::object(); });
+  table.Register("arr", [](const auto&, auto&, auto) -> nlohmann::json { return nlohmann::json::array(); });
+
+  // put(container, key/index, value)
+  table.Register("put", [](const auto& args, auto& ctx, auto eval) -> nlohmann::json {
+    if (args.size() != 3) throw RuntimeError("put expects exactly 3 arguments (container, key/idx, value)");
+    auto container  = eval(*args[0], ctx);
+    auto key_or_idx = eval(*args[1], ctx);
+    auto val        = eval(*args[2], ctx);
+
+    if (container.is_object()) {
+      if (!key_or_idx.is_string()) throw RuntimeError("put on object expects a string key");
+      container[key_or_idx.template get<std::string>()] = std::move(val);
+    } else if (container.is_array()) {
+      if (!key_or_idx.is_number_integer()) throw RuntimeError("put on array expects an integer index");
+      size_t idx = key_or_idx.template get<size_t>();
+      if (idx > container.size()) throw RuntimeError("put index out of bounds");
+      if (idx == container.size()) {
+        container.push_back(std::move(val));
+      } else {
+        container[idx] = std::move(val);
+      }
+    } else {
+      throw RuntimeError("put requires an object or array as the first argument");
+    }
+    return container;
+  });
+
+  // reduce(array, init, (acc, item, idx) -> ...)
+  table.Register("reduce", [](const auto& args, auto& ctx, auto eval) -> nlohmann::json {
+    if (args.size() != 3) throw RuntimeError("reduce expects exactly 3 arguments (array, init, lambda)");
+    auto arr_val = eval(*args[0], ctx);
+    if (!arr_val.is_array()) throw RuntimeError("reduce's first argument must be an array");
+
+    auto acc = eval(*args[1], ctx);
+
+    const auto* lambda = dynamic_cast<const LambdaNode*>(args[2]->GetUnderlyingNode());
+    if (!lambda) throw RuntimeError("reduce's third argument must be a lambda expression");
+
+    const auto& params = lambda->param_names();
+    if (params.size() < 2 || params.size() > 3) {
+      throw RuntimeError("reduce's lambda must accept 2 or 3 parameters (acc, item [, idx])");
+    }
+
+    ScopeGuard scope(ctx);
+    for (size_t idx = 0; idx < arr_val.size(); ++idx) {
+      scope.Bind(params[0], acc);
+      scope.Bind(params[1], arr_val[idx]);
+      if (params.size() > 2) {
+        scope.Bind(params[2], idx);
+      }
+
+      acc = lambda->body().Evaluate(ctx);
+    }
+    return acc;
   });
 }
 
@@ -232,7 +257,7 @@ CompiledTemplate TemplateEngine::Compile(nlohmann::ordered_json const& template_
 }
 
 EvaluationContext TemplateEngine::CreateContext(nlohmann::json const& source_json, nlohmann::json& target) {
-  return {.source = source_json, .target = target, .locals = {}, .symbol_table = symbol_table_};
+  return EvaluationContext{source_json, target, symbol_table_};
 }
 
 

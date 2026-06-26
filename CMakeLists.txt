@@ -24,6 +24,7 @@ set(DEL_SOURCES
         src/del/exception.cc
         src/del/lexer.h
         src/del/lexer.cc
+        src/del/context.h
         src/del/symbol_table.h
         src/del/symbol_table.cc
         src/del/ast.h

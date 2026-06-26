@@ -1,6 +1,8 @@
 #include "ast.h"
+#include "context.h"
 #include "exception.h"
 #include "symbol_table.h"
+#include <iostream>
 
 namespace del {
 
@@ -54,11 +56,19 @@ IdentifierNode::IdentifierNode(std::string name) : name_(std::move(name)) {}
 const std::string& IdentifierNode::name() const { return name_; }
 
 nlohmann::json IdentifierNode::Evaluate(EvaluationContext& ctx) const {
-  auto it = ctx.locals.find(name_);
-  if (it != ctx.locals.end()) {
-    return it->second;
+  if (ctx.linked_env == nullptr) [[unlikely]] {
+    std::cerr << std::format(
+        "[CRITICAL ERROR] Evaluation context has a null Environment pointer. "
+        "Invariant violated during evaluating identifier '{}'.\n",
+        name_
+    );
+    std::abort();
   }
-  throw RuntimeError("Undefined identifier: " + name_);
+  const auto* val = ctx.linked_env->Lookup(name_);
+  if (val) {
+    return *val;
+  }
+  throw RuntimeError(std::format("Undefined identifier: '{}'", name_));
 }
 std::string IdentifierNode::ToString() const { return name_; }
 
@@ -219,18 +229,43 @@ std::string TernaryNode::ToString() const {
 }
 
 
-LambdaNode::LambdaNode(std::string param_name, std::unique_ptr<ASTNode> body)
-: param_name_(std::move(param_name)),
+TupleNode::TupleNode(std::vector<std::unique_ptr<ASTNode>> elements) : elements_(std::move(elements)) {}
+const std::vector<std::unique_ptr<ASTNode>>& TupleNode::elements() const { return elements_; }
+
+nlohmann::json TupleNode::Evaluate(EvaluationContext&) const {
+  throw RuntimeError("Tuple expressions cannot be evaluated outside lambda parameter lists");
+}
+std::string TupleNode::ToString() const {
+  std::string res = "(";
+  for (size_t i = 0; i < elements_.size(); ++i) {
+    if (i > 0) res += ", ";
+    res += elements_[i]->ToString();
+  }
+  res += ")";
+  return res;
+}
+
+
+LambdaNode::LambdaNode(std::vector<std::string> param_names, std::unique_ptr<ASTNode> body)
+: param_names_(std::move(param_names)),
   body_(std::move(body)) {}
 
-const std::string& LambdaNode::param_name() const { return param_name_; }
-const ASTNode&     LambdaNode::body() const { return *body_; }
+const std::vector<std::string>& LambdaNode::param_names() const { return param_names_; }
+const ASTNode&                  LambdaNode::body() const { return *body_; }
 
 nlohmann::json LambdaNode::Evaluate(EvaluationContext&) const {
   throw RuntimeError("Lambda expressions cannot be evaluated outside of high-order functions");
 }
 
-std::string LambdaNode::ToString() const { return param_name_ + " -> " + body_->ToString(); }
+std::string LambdaNode::ToString() const {
+  std::string res = "(";
+  for (size_t i = 0; i < param_names_.size(); ++i) {
+    if (i > 0) res += ", ";
+    res += param_names_[i];
+  }
+  res += ") -> " + body_->ToString();
+  return res;
+}
 
 
 CallNode::CallNode(std::string name, std::vector<std::unique_ptr<ASTNode>> args)

@@ -186,7 +186,16 @@ std::unique_ptr<ASTNode> Parser::ParsePrefixExpression() {
 
 std::unique_ptr<ASTNode> Parser::ParseGroupedExpression() {
   NextToken(); // 消费 '('
-  auto expr = ParseExpression(Precedence::kLowest);
+  std::vector<std::unique_ptr<ASTNode>> elements;
+  elements.push_back(ParseExpression(Precedence::kLowest));
+
+  // 循环解析逗号分隔的标识符或表达式
+  while (peek_token_.type == TokenType::kComma) {
+    NextToken(); // 移动到 ','
+    NextToken(); // 消费 ','，移至下一个元素
+    elements.push_back(ParseExpression(Precedence::kLowest));
+  }
+
   if (peek_token_.type != TokenType::kRparen) {
     throw SyntaxError(
         "Expected closing parenthesis ')'",
@@ -196,8 +205,12 @@ std::unique_ptr<ASTNode> Parser::ParseGroupedExpression() {
         lexer_.Input()
     );
   }
-  NextToken(); // 将 ')' 推进为当前的 cur_token_，完成括号闭合
-  return expr;
+  NextToken(); // 消费 ')'
+
+  if (elements.size() == 1) {
+    return std::move(elements[0]);
+  }
+  return std::make_unique<TupleNode>(std::move(elements));
 }
 
 // 中缀解析
@@ -298,20 +311,37 @@ std::unique_ptr<ASTNode> Parser::ParseCallExpression(std::unique_ptr<ASTNode> le
 }
 
 std::unique_ptr<ASTNode> Parser::ParseLambdaExpression(std::unique_ptr<ASTNode> left) {
-  auto ident_node = dynamic_cast<IdentifierNode*>(left.get());
-  if (!ident_node) {
+  std::vector<std::string> params;
+
+  if (auto* ident_node = dynamic_cast<IdentifierNode*>(left.get())) {
+    params.push_back(ident_node->name());
+  } else if (auto* tuple_node = dynamic_cast<TupleNode*>(left.get())) {
+    for (const auto& node : tuple_node->elements()) {
+      auto* id = dynamic_cast<IdentifierNode*>(node.get());
+      if (!id) {
+        throw SyntaxError(
+            "Lambda parameter must be a single identifier",
+            cur_token_.line,
+            cur_token_.column,
+            lexer_.PathKey(),
+            lexer_.Input()
+        );
+      }
+      params.push_back(id->name());
+    }
+  } else {
     throw SyntaxError(
-        "Left side of lambda '->' must be a single identifier",
+        "Left side of lambda '->' must be an identifier or parameter list",
         cur_token_.line,
         cur_token_.column,
         lexer_.PathKey(),
         lexer_.Input()
     );
   }
-  std::string param_name = ident_node->name();
+
   NextToken(); // 消费 '->'
   auto body = ParseExpression(Precedence::kLowest);
-  return std::make_unique<LambdaNode>(std::move(param_name), std::move(body));
+  return std::make_unique<LambdaNode>(std::move(params), std::move(body));
 }
 
 
