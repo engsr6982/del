@@ -73,7 +73,6 @@ nlohmann::json PointerNode::Evaluate(EvaluationContext& ctx) const {
     }
   } catch (...) {
     // RFC 6901 寻址失败时，静默求值为 null
-    // TODO: 如果是 target 考虑自动新建?
   }
   return nullptr;
 }
