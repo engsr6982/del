@@ -48,6 +48,7 @@ class Lexer {
   size_t           pos_{0};
   size_t           line_{1};
   size_t           col_{1};
+  TokenType        last_token_type_{TokenType::kEof};
 
   static constexpr char kEofChar = '\0';
 
@@ -62,6 +63,8 @@ class Lexer {
   bool IsDelimiter(char c) const;
 
   bool IsPointerDelimiter(char c) const;
+
+  Token ReadNumberToken(size_t start_pos, size_t start_col);
 
 public:
   constexpr explicit Lexer(std::string_view input, std::string_view path_key = "")
