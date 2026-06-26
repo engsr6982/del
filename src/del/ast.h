@@ -15,7 +15,7 @@ class SymbolTable;
 struct EvaluationContext {
   nlohmann::json const&                                source;
   nlohmann::json&                                      target;
-  std::unordered_map<std::string_view, nlohmann::json> locals;
+  std::unordered_map<std::string_view, nlohmann::json> locals; // 局部闭包变量表 (lambda)
   SymbolTable const&                                   symbol_table;
 };
 
@@ -30,6 +30,8 @@ public:
   [[nodiscard]] virtual nlohmann::json Evaluate(EvaluationContext& ctx) const = 0;
 
   [[nodiscard]] virtual std::string ToString() const = 0;
+
+  [[nodiscard]] virtual const ASTNode* GetUnderlyingNode() const; // for ReferenceNode
 };
 
 
@@ -189,6 +191,8 @@ public:
   explicit ReferenceNode(const ASTNode& ref);
   nlohmann::json Evaluate(EvaluationContext& ctx) const override;
   std::string    ToString() const override;
+
+  const ASTNode* GetUnderlyingNode() const override;
 
 private:
   const ASTNode& ref_;

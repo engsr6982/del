@@ -128,7 +128,7 @@ void RegisterBuiltins(SymbolTable& table) {
     auto arr_val = eval(*args[0], ctx);
     if (!arr_val.is_array()) throw RuntimeError("map's first argument must be an array");
 
-    const auto* lambda = dynamic_cast<const LambdaNode*>(args[1].get());
+    const auto* lambda = dynamic_cast<const LambdaNode*>(args[1]->GetUnderlyingNode());
     if (!lambda) throw RuntimeError("map's second argument must be a lambda expression");
 
     nlohmann::json   result_arr = nlohmann::json::array();
@@ -159,7 +159,7 @@ void RegisterBuiltins(SymbolTable& table) {
     auto obj_val = eval(*args[0], ctx);
     if (!obj_val.is_object()) throw RuntimeError("map_object's first argument must be an object");
 
-    const auto* lambda = dynamic_cast<const LambdaNode*>(args[1].get());
+    const auto* lambda = dynamic_cast<const LambdaNode*>(args[1]->GetUnderlyingNode());
     if (!lambda) throw RuntimeError("map_object's second argument must be a lambda expression");
 
     nlohmann::json   result_obj = nlohmann::json::object();

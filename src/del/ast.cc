@@ -27,6 +27,7 @@ inline void EnsureSameType(nlohmann::json const& lhs, nlohmann::json const& rhs,
     );
   }
 }
+const ASTNode* ASTNode::GetUnderlyingNode() const { return this; }
 
 
 nlohmann::json NumberLiteralNode::Evaluate(EvaluationContext&) const {
@@ -266,6 +267,7 @@ std::string    PreEvaluatedNode::ToString() const { return val_.dump(); }
 ReferenceNode::ReferenceNode(const ASTNode& ref) : ref_(ref) {}
 nlohmann::json ReferenceNode::Evaluate(EvaluationContext& ctx) const { return ref_.Evaluate(ctx); }
 std::string    ReferenceNode::ToString() const { return ref_.ToString(); }
+const ASTNode* ReferenceNode::GetUnderlyingNode() const { return ref_.GetUnderlyingNode(); }
 
 
 PipelineNode::PipelineNode(std::unique_ptr<ASTNode> left, std::unique_ptr<ASTNode> right)
