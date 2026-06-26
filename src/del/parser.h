@@ -17,9 +17,11 @@ enum class Precedence : int {
   kAnd          = 2,  // &&
   kEqual        = 3,  // ==, !=
   kRelational   = 4,  // <, >, <=, >=
-  kPipeline     = 5,  // |>
-  kPrefix       = 6,  // !, -
-  kCall         = 7,  // ()
+  kSum          = 5,  // +, -
+  kProduct      = 6,  // *, /
+  kPipeline     = 7,  // |> (优先级高于算术，确保 a |> b + c 为 (a |> b) + c)
+  kPrefix       = 8,  // !, -
+  kCall         = 9,  // ()
 };
 
 class Parser {
@@ -27,6 +29,8 @@ public:
   DEL_DISABLE_COPY(Parser);
 
   explicit Parser(Lexer lexer);
+
+  std::unique_ptr<ASTNode> ParseTopLevelExpression();
 
   std::unique_ptr<ASTNode> ParseExpression(Precedence precedence);
 
@@ -37,7 +41,10 @@ private:
 
   void NextToken();
 
+  static Precedence ResolveTokenPrecedence(TokenType type);
+
   Precedence GetPeekPrecedence() const;
+  Precedence GetCurPrecedence() const;
 
   using PrefixFn = std::unique_ptr<ASTNode> (Parser::*)();
   using InfixFn  = std::unique_ptr<ASTNode> (Parser::*)(std::unique_ptr<ASTNode>);
@@ -61,8 +68,6 @@ private:
 
   // 中缀解析
   std::unique_ptr<ASTNode> ParseInfixExpression(std::unique_ptr<ASTNode> left);
-
-  Precedence GetCurPrecedence() const;
 
   std::unique_ptr<ASTNode> ParseTernaryExpression(std::unique_ptr<ASTNode> left);
 

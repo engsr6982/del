@@ -229,7 +229,7 @@ CompiledPathExpr TemplateEngine::CompileExprStr(std::string_view expr, std::stri
   Parser           parser(lexer);
   CompiledPathExpr instr;
   instr.target_pointer_path = path_key;
-  instr.compiled_ast        = parser.ParseExpression(Precedence::kLowest);
+  instr.compiled_ast        = parser.ParseTopLevelExpression();
   return instr;
 }
 CompiledPathExpr TemplateEngine::CompileExpr(nlohmann::json const& expr, std::string_view path_key) {

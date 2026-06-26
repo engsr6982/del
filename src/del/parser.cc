@@ -12,6 +12,22 @@ Parser::Parser(Lexer lexer) : lexer_(lexer) {
   NextToken(); // init peek_token_
 }
 
+std::unique_ptr<ASTNode> Parser::ParseTopLevelExpression() {
+  auto ast = ParseExpression(Precedence::kLowest);
+
+  if (peek_token_.type != TokenType::kEof) {
+    throw SyntaxError(
+        std::format("Unexpected trailing token '{}' after expression", peek_token_.literal),
+        peek_token_.line,
+        peek_token_.column,
+        lexer_.PathKey(),
+        lexer_.Input()
+    );
+  }
+
+  return std::move(ast);
+}
+
 std::unique_ptr<ASTNode> Parser::ParseExpression(Precedence precedence) {
   auto prefix_fn = GetPrefixFn(cur_token_.type);
   if (!prefix_fn) {
@@ -43,8 +59,8 @@ void Parser::NextToken() {
   peek_token_ = lexer_.NextToken();
 }
 
-Precedence Parser::GetPeekPrecedence() const {
-  switch (peek_token_.type) {
+Precedence Parser::ResolveTokenPrecedence(TokenType type) {
+  switch (type) {
   case TokenType::kQuestion:
     return Precedence::kTernary;
   case TokenType::kNullCoalesce:
@@ -61,6 +77,12 @@ Precedence Parser::GetPeekPrecedence() const {
   case TokenType::kGreater:
   case TokenType::kGreaterEqual:
     return Precedence::kRelational;
+  case TokenType::kPlus:
+  case TokenType::kMinus:
+    return Precedence::kSum;
+  case TokenType::kAsterisk:
+  case TokenType::kSlash:
+    return Precedence::kProduct;
   case TokenType::kPipe:
     return Precedence::kPipeline;
   case TokenType::kLparen:
@@ -71,6 +93,8 @@ Precedence Parser::GetPeekPrecedence() const {
     return Precedence::kLowest;
   }
 }
+Precedence Parser::GetPeekPrecedence() const { return ResolveTokenPrecedence(peek_token_.type); }
+Precedence Parser::GetCurPrecedence() const { return ResolveTokenPrecedence(cur_token_.type); }
 
 Parser::PrefixFn Parser::GetPrefixFn(TokenType type) {
   switch (type) {
@@ -222,34 +246,6 @@ std::unique_ptr<ASTNode> Parser::ParseInfixExpression(std::unique_ptr<ASTNode> l
   return std::make_unique<InfixNode>(std::move(op), std::move(left), std::move(right));
 }
 
-Precedence Parser::GetCurPrecedence() const {
-  switch (cur_token_.type) {
-  case TokenType::kQuestion:
-    return Precedence::kTernary;
-  case TokenType::kNullCoalesce:
-    return Precedence::kNullCoalesce;
-  case TokenType::kOr:
-    return Precedence::kOr;
-  case TokenType::kAnd:
-    return Precedence::kAnd;
-  case TokenType::kEqual:
-  case TokenType::kNotEqual:
-    return Precedence::kEqual;
-  case TokenType::kLess:
-  case TokenType::kLessEqual:
-  case TokenType::kGreater:
-  case TokenType::kGreaterEqual:
-    return Precedence::kRelational;
-  case TokenType::kPipe:
-    return Precedence::kPipeline;
-  case TokenType::kLparen:
-    return Precedence::kCall;
-  case TokenType::kArrow:
-    return Precedence::kArrow;
-  default:
-    return Precedence::kLowest;
-  }
-}
 
 std::unique_ptr<ASTNode> Parser::ParseTernaryExpression(std::unique_ptr<ASTNode> left) {
   NextToken(); // 消费 '?'
