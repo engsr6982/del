@@ -199,46 +199,67 @@ void TemplateEngine::RegisterCustomFunction(std::string name, CustomFunction fn)
   symbol_table_.Register(std::move(name), std::move(fn));
 }
 
-// 对模板执行一次编译
-CompiledTemplate TemplateEngine::Compile(const nlohmann::ordered_json& template_json) {
+CompiledPathExpr TemplateEngine::CompileExprStr(std::string_view expr, std::string_view path_key) {
+  Lexer            lexer(expr, path_key);
+  Parser           parser(lexer);
+  CompiledPathExpr instr;
+  instr.target_pointer_path = path_key;
+  instr.compiled_ast        = parser.ParseExpression(Precedence::kLowest);
+  return instr;
+}
+CompiledPathExpr TemplateEngine::CompileExpr(nlohmann::json const& expr, std::string_view path_key) {
+  if (expr.is_string()) {
+    auto str = expr.get<std::string>();
+    return CompileExprStr(str, path_key);
+  } else {
+    CompiledPathExpr instr;
+    instr.target_pointer_path = path_key;
+    instr.direct_value        = expr;
+    return instr;
+  }
+}
+CompiledTemplate TemplateEngine::Compile(nlohmann::ordered_json const& template_json) {
   CompiledTemplate ct;
   for (auto it = template_json.begin(); it != template_json.end(); ++it) {
     const std::string& path     = it.key();
     const auto&        expr_val = it.value();
 
-    CompiledPathExpr instr;
-    instr.target_pointer_path = path;
+    auto instr = CompileExpr(expr_val, path);
 
-    if (expr_val.is_string()) {
-      std::string expr_str = expr_val.get<std::string>();
-      Lexer       lexer(expr_str, path);
-      Parser      parser(lexer);
-      instr.compiled_ast = parser.ParseExpression(Precedence::kLowest);
-    } else {
-      instr.direct_value = expr_val;
-    }
     ct.instructions.push_back(std::move(instr));
   }
   return ct;
 }
 
-// 极速运行：在转换几千条数据时，仅调用此函数执行 AST 遍历
-nlohmann::json TemplateEngine::Execute(const CompiledTemplate& ct, const nlohmann::json& source_json) {
-  nlohmann::json    target_json = nlohmann::json::object();
-  EvaluationContext ctx{source_json, target_json, {}, symbol_table_};
-
-  for (const auto& instr : ct.instructions) {
-    if (instr.compiled_ast) {
-      nlohmann::json result = instr.compiled_ast->Evaluate(ctx);
-      MountTargetValue(target_json, instr.target_pointer_path, std::move(result));
-    } else {
-      MountTargetValue(target_json, instr.target_pointer_path, instr.direct_value);
-    }
-  }
-  return target_json;
+EvaluationContext TemplateEngine::CreateContext(nlohmann::json const& source_json, nlohmann::json& target) {
+  return {.source = source_json, .target = target, .locals = {}, .symbol_table = symbol_table_};
 }
 
-void TemplateEngine::MountTargetValue(nlohmann::json& target, const std::string& path_str, nlohmann::json value) {
+
+nlohmann::json TemplateEngine::Execute(CompiledTemplate const& ct, nlohmann::json const& source_json) {
+  auto target_json = nlohmann::json::object();
+  auto ctx         = CreateContext(source_json, target_json);
+  Execute(ct, ctx);
+  return target_json;
+}
+void TemplateEngine::Execute(CompiledTemplate const& ct, EvaluationContext& ctx) {
+  for (const auto& instr : ct.instructions) {
+    auto result = Execute(instr, ctx);
+    if (!instr.target_pointer_path.empty()) {
+      MountValue(ctx.target, instr.target_pointer_path, std::move(result));
+    }
+  }
+}
+nlohmann::json TemplateEngine::Execute(CompiledPathExpr const& instr, EvaluationContext& ctx) {
+  if (instr.compiled_ast) {
+    auto result = instr.compiled_ast->Evaluate(ctx);
+    return result;
+  } else {
+    return instr.direct_value;
+  }
+}
+
+void TemplateEngine::MountValue(nlohmann::json& target, std::string const& path_str, nlohmann::json value) {
   try {
     nlohmann::json::json_pointer ptr(path_str);
     // nlohmann::json 的 operator[] 遇到不存在的父路径会自动构建嵌套对象

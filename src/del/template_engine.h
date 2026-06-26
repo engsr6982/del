@@ -31,16 +31,24 @@ public:
 
   void RegisterCustomFunction(std::string name, CustomFunction fn);
 
-  // 对模板执行一次编译
-  CompiledTemplate Compile(const nlohmann::ordered_json& template_json);
+  [[nodiscard]] CompiledPathExpr CompileExprStr(std::string_view expr, std::string_view path_key = "");
+  [[nodiscard]] CompiledPathExpr CompileExpr(nlohmann::json const& expr, std::string_view path_key = "");
 
-  // 极速运行：在转换几千条数据时，仅调用此函数执行 AST 遍历
-  nlohmann::json Execute(const CompiledTemplate& ct, const nlohmann::json& source_json);
+  [[nodiscard]] CompiledTemplate Compile(nlohmann::ordered_json const& template_json);
+
+  [[nodiscard]] EvaluationContext CreateContext(nlohmann::json const& source_json, nlohmann::json& target);
+
+  [[nodiscard]] nlohmann::json Execute(CompiledTemplate const& ct, nlohmann::json const& source_json);
+
+  void Execute(CompiledTemplate const& ct, EvaluationContext& ctx);
+
+  // execute expr only, return the result (not modify the target)
+  [[nodiscard]] nlohmann::json Execute(CompiledPathExpr const& instr, EvaluationContext& ctx);
+
+  static void MountValue(nlohmann::json& target, std::string const& path_str, nlohmann::json value);
 
 private:
   SymbolTable symbol_table_;
-
-  void MountTargetValue(nlohmann::json& target, const std::string& path_str, nlohmann::json value);
 };
 
 
