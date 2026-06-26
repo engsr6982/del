@@ -43,6 +43,6 @@ RuntimeError::RuntimeError(std::string message, std::string_view path_key) : mes
   }
 }
 
-const char* RuntimeError::what() const { return message_.c_str(); }
+const char* RuntimeError::what() const { return full_message_.c_str(); }
 
 } // namespace del
