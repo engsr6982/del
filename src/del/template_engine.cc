@@ -93,6 +93,7 @@ void RegisterBuiltins(SymbolTable& table) {
   table.Register("to_str", [](const auto& args, auto& ctx, auto eval) -> nlohmann::json {
     if (args.size() != 1) throw RuntimeError("to_str expects exactly 1 argument");
     nlohmann::json val = eval(*args[0], ctx);
+    if (val.is_string()) return val;
     return val.dump();
   });
 
