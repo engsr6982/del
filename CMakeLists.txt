@@ -65,5 +65,11 @@ else()
 endif()
 
 
-add_executable(del_test EXCLUDE_FROM_ALL tests/main.cc)
+add_executable(del_repl EXCLUDE_FROM_ALL tests/repl_main.cc)
+target_link_libraries(del_repl PRIVATE del)
+
+add_executable(del_cli EXCLUDE_FROM_ALL tests/cli_main.cc)
+target_link_libraries(del_cli PRIVATE del)
+
+add_executable(del_test EXCLUDE_FROM_ALL tests/test_main.cc)
 target_link_libraries(del_test PRIVATE del)

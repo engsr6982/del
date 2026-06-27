@@ -1,0 +1,33 @@
+{
+    "info": {
+        "uuid": "123e4567-e89b-12d3-a456-426614174000",
+        "name": "   John Doe  "
+    },
+    "member_uuid": [
+        "ujcsiojw-e89b-isjs-a456-asdjoiasfnia",
+        "123e4567-0s8d-12d3-0aif-da7287sfu0a9",
+        "989asf8a-e89b-da97-7fs0-2908sfy87yaa"
+    ],
+    "version": 33,
+    "data": {
+        "flags": {
+            "is_active": true,
+            "is_admin": false
+        },
+        "extern_data": {
+            "custom": "foo",
+            "my_data": "bar"
+        }
+    },
+    "nums": [
+        1,
+        null,
+        2,
+        null,
+        3,
+        null,
+        4,
+        null,
+        5
+    ]
+}

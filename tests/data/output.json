@@ -1,0 +1,27 @@
+{
+  "members": [
+    "UJCSIOJWE89BISJSA456ASDJOIASFNIA",
+    "123E45670S8D12D30AIFDA7287SFU0A9",
+    "989ASF8AE89BDA977FS02908SFY87YAA"
+  ],
+  "name": "John Doe",
+  "nums": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "owner": "123E4567E89B12D3A456426614174000",
+  "payload": {
+    "extern": {
+      "custom": "foo",
+      "my_data": "bar"
+    },
+    "flags": {
+      "is_active": true,
+      "is_admin": false
+    }
+  },
+  "version": 33
+}

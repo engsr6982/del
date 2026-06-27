@@ -1,0 +1,9 @@
+{
+    "/version": "@/version",
+    "/owner": "@/info/uuid |> remove_char('-') |> to_upper",
+    "/name": "@/info/name |> trim",
+    "/members": "map(@/member_uuid, arg -> arg |> remove_char('-') |> to_upper)",
+    "/payload/flags": "@/data/flags",
+    "/payload/extern": "@/data/extern_data",
+    "/nums": "@/nums |> filter(i -> !is_null(i))"
+}
