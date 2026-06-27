@@ -307,6 +307,23 @@ array() |> put(0, 'foo') // ["foo"]
 array() |> put(0, 'foo') |> reduce(object(), (acc, el) -> put(acc, el, true)) // {"foo":true}
 ```
 
+#### `filter` - 过滤数组中的元素并返回一个新数组
+
+- 原型: `filter(array, lambda)`
+  - `array`: `array`
+    - 要过滤的数组
+  - `lambda`: `(element) -> ...`
+    - `element`: `T`
+      - 指向 `array` 中的每一个元素(迭代), `element` 类型取决于输入类型。
+    - 返回: `bool`
+      - 是否保留当前元素。
+- 返回: `array`
+  - 过滤后的新数组。
+
+```del
+@/foo/bar |> filter((element) -> element == 'foo')
+```
+
 ---
 
 ## 语法糖

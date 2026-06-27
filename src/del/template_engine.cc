@@ -227,6 +227,34 @@ void RegisterBuiltins(SymbolTable& table) {
     }
     return acc;
   });
+
+  // filter(arr, (element) -> ...)
+  table.Register("filter", [](const auto& args, auto& ctx, auto eval) -> nlohmann::json {
+    if (args.size() != 2) throw RuntimeError("filter expects exactly 2 arguments (array, lambda)");
+    auto arr_val = eval(*args[0], ctx);
+    if (!arr_val.is_array()) throw RuntimeError("filter's first argument must be an array");
+
+    const auto* lambda = dynamic_cast<const LambdaNode*>(args[1]->GetUnderlyingNode());
+    if (!lambda) throw RuntimeError("filter's second argument must be a lambda expression");
+
+    const auto& params = lambda->param_names();
+    if (params.size() != 1) throw RuntimeError("filter's lambda must accept 1 parameter (element)");
+
+    ScopeGuard     scope(ctx);
+    nlohmann::json result_arr = nlohmann::json::array();
+    for (size_t idx = 0; idx < arr_val.size(); ++idx) {
+      scope.Bind(params[0], arr_val[idx]);
+
+      auto cond = lambda->body().Evaluate(ctx);
+      if (!cond.is_boolean()) [[unlikely]]
+        throw RuntimeError("filter's lambda must return a boolean value");
+
+      if (cond.template get<bool>()) {
+        result_arr.push_back(arr_val[idx]);
+      }
+    }
+    return result_arr;
+  });
 }
 
 TemplateEngine::TemplateEngine() { RegisterBuiltins(symbol_table_); }
