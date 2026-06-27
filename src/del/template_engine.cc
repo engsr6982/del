@@ -13,7 +13,7 @@
 namespace del {
 
 void RegisterBuiltins(SymbolTable& table) {
-  // remove_char(str, target_char)
+  // remove_char(str, char_str)
   table.Register("remove_char", [](const auto& args, auto& ctx, auto eval) -> nlohmann::json {
     if (args.size() != 2) throw RuntimeError("remove_char expects exactly 2 arguments");
     auto s = eval(*args[0], ctx);
@@ -66,7 +66,7 @@ void RegisterBuiltins(SymbolTable& table) {
     return str.substr(first, (last - first + 1));
   });
 
-  // remove_suffix(str, suffix)
+  // remove_suffix(str, suffix_str)
   table.Register("remove_suffix", [](const auto& args, auto& ctx, auto eval) -> nlohmann::json {
     if (args.size() != 2) throw RuntimeError("remove_suffix expects exactly 2 arguments");
     auto s   = eval(*args[0], ctx);
@@ -136,7 +136,7 @@ void RegisterBuiltins(SymbolTable& table) {
     return result_arr;
   });
 
-  // map_object(object, lambda) 对象高阶映射
+  // map_object(object, (key, value, index) -> ...) 对象高阶映射
   table.Register("map_object", [](const auto& args, auto& ctx, auto eval) -> nlohmann::json {
     if (args.size() != 2) throw RuntimeError("map_object expects exactly 2 arguments (object, lambda)");
     auto obj_val = eval(*args[0], ctx);
@@ -171,8 +171,8 @@ void RegisterBuiltins(SymbolTable& table) {
   });
 
   // 辅助函数：构造空容器
-  table.Register("obj", [](const auto&, auto&, auto) -> nlohmann::json { return nlohmann::json::object(); });
-  table.Register("arr", [](const auto&, auto&, auto) -> nlohmann::json { return nlohmann::json::array(); });
+  table.Register("object", [](const auto&, auto&, auto) -> nlohmann::json { return nlohmann::json::object(); });
+  table.Register("array", [](const auto&, auto&, auto) -> nlohmann::json { return nlohmann::json::array(); });
 
   // put(container, key/index, value)
   table.Register("put", [](const auto& args, auto& ctx, auto eval) -> nlohmann::json {
