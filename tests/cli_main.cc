@@ -8,6 +8,7 @@
 #include "del/version.h"
 
 #include <cassert>
+#include <chrono>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -15,6 +16,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+
 
 #include "args_helper.h"
 
@@ -99,6 +101,72 @@ int template_convert(
   return 0;
 }
 
+int benchmark(std::string const& template_file, std::string const& source_file) {
+  using Clock = std::chrono::high_resolution_clock;
+
+  auto template_json = load_json_file(template_file);
+  auto source_json   = load_json_file(source_file);
+
+  if (!template_json || !source_json) {
+    std::cerr << "Failed to load JSON files" << std::endl;
+    return 1;
+  }
+
+  del::TemplateEngine engine;
+
+  std::cout << "Compiling template..." << std::endl;
+
+  std::optional<del::CompiledTemplate> compiled_template;
+  try {
+    auto compile_start = Clock::now(); // Start time
+    compiled_template  = engine.Compile(*template_json);
+    auto compile_end   = Clock::now(); // End time
+
+    auto   total_us = std::chrono::duration_cast<std::chrono::microseconds>(compile_end - compile_start).count();
+    double total_ms = static_cast<double>(total_us) / 1000.0;
+
+    std::cout << "Compile time: " << total_us << " us" << std::endl;
+    std::cout << "Compile time: " << total_ms << " ms" << std::endl;
+
+  } catch (std::exception const& e) {
+    std::cerr << "Failed to compile template: " << e.what() << std::endl;
+    return 1;
+  }
+
+  std::cout << "Compiling template...OK" << std::endl;
+
+  std::cout << "Executing template..." << std::endl;
+
+  try {
+    int iterations = 10000;
+
+    auto execute_start = Clock::now(); // Start time
+
+    auto& ct = *compiled_template;
+    auto& sj = *source_json;
+    for (int i = 0; i < iterations; ++i) {
+      (void)engine.Execute(ct, sj);
+    }
+    auto execute_end = Clock::now(); // End time
+
+    auto   total_us   = std::chrono::duration_cast<std::chrono::microseconds>(execute_end - execute_start).count();
+    double total_ms   = static_cast<double>(total_us) / 1000.0;
+    double average_us = static_cast<double>(total_us) / iterations;
+    double ops        = (iterations / total_ms) * 1000.0;
+
+    std::cout << "Iterations: " << iterations << std::endl;
+    std::cout << "Execution time: " << total_us << " us" << std::endl;
+    std::cout << "Execution time: " << total_ms << " ms" << std::endl;
+    std::cout << "Average execution time: " << average_us << " us" << std::endl;
+    std::cout << "Operations per second: " << ops << std::endl;
+
+  } catch (std::exception const& e) {
+    std::cerr << "Failed to execute template: " << e.what() << std::endl;
+    return 1;
+  }
+  return 0;
+}
+
 } // namespace
 
 
@@ -135,6 +203,10 @@ int main(int argc, char** argv) {
   std::cout << "Source file: " << *source_file << std::endl;
   std::cout << "Template file: " << *template_file << std::endl;
   std::cout << "Output file: " << output_file.value_or("") << std::endl;
+
+  if (args.has_flag("--benchmark")) {
+    return benchmark(*template_file, *source_file);
+  }
 
   return template_convert(*template_file, *source_file, output_file);
 }
