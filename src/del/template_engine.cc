@@ -4,6 +4,9 @@
 #include "exception.h"
 #include "lexer.h"
 #include "parser.h"
+
+#include "nlohmann/json_fwd.hpp"
+
 #include <memory>
 
 
@@ -84,6 +87,13 @@ void RegisterBuiltins(SymbolTable& table) {
     if (args.size() != 1) throw RuntimeError("is_null expects exactly 1 argument");
     auto val = eval(*args[0], ctx);
     return val.is_null();
+  });
+
+  // to_str(val)
+  table.Register("to_str", [](const auto& args, auto& ctx, auto eval) -> nlohmann::json {
+    if (args.size() != 1) throw RuntimeError("to_str expects exactly 1 argument");
+    nlohmann::json val = eval(*args[0], ctx);
+    return val.dump();
   });
 
   // entry(key, val) -> 打包生成一个单键值对的 JSON 节点

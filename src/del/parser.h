@@ -17,9 +17,9 @@ enum class Precedence : int {
   kAnd          = 2,  // &&
   kEqual        = 3,  // ==, !=
   kRelational   = 4,  // <, >, <=, >=
-  kSum          = 5,  // +, -
-  kProduct      = 6,  // *, /
-  kPipeline     = 7,  // |> (优先级高于算术，确保 a |> b + c 为 (a |> b) + c)
+  kPipeline     = 5,  // |>
+  kSum          = 6,  // +, -
+  kProduct      = 7,  // *, /
   kPrefix       = 8,  // !, -
   kCall         = 9,  // ()
 };

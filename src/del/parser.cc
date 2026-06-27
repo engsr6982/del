@@ -89,6 +89,8 @@ Precedence Parser::ResolveTokenPrecedence(TokenType type) {
     return Precedence::kCall;
   case TokenType::kArrow:
     return Precedence::kArrow;
+  case TokenType::kNot:
+    return Precedence::kPrefix;
   default:
     return Precedence::kLowest;
   }
