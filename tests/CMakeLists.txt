@@ -38,6 +38,7 @@ add_library(imgui_core STATIC
 )
 target_include_directories(imgui_core SYSTEM PUBLIC ${imgui_SOURCE_DIR})
 target_compile_definitions(imgui_core PUBLIC IMGUI_DISABLE_OBSOLETE_FUNCTIONS)
+add_library(imgui::imgui ALIAS imgui_core)
 
 # ---- GLFW ----
 message(STATUS "[deps] fetching GLFW 3.4 ...")

@@ -24,10 +24,59 @@ configure_file(
 # ==========================================================================
 # Dependencies
 # ==========================================================================
-find_package(nlohmann_json REQUIRED)
+# ---- nlohmann_json (Header Only) ----
+if(NOT TARGET nlohmann_json::nlohmann_json)
+    find_package(nlohmann_json QUIET)
+    
+    # 兼容 xmake 或裸路径环境：如果没找到 Config 文件，手动查找头文件并建立虚构目标
+    if(NOT TARGET nlohmann_json::nlohmann_json AND NOT nlohmann_json_FOUND)
+        find_path(NLOHMANN_JSON_INCLUDE_DIR NAMES nlohmann/json.hpp)
+        if(NLOHMANN_JSON_INCLUDE_DIR)
+            add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED)
+            set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
+                INTERFACE_INCLUDE_DIRECTORIES "${NLOHMANN_JSON_INCLUDE_DIR}"
+            )
+        else()
+            message(FATAL_ERROR "nlohmann_json required but not found!")
+        endif()
+    endif()
+endif()
 
+# ---- Editor Dependencies ----
 if(DEL_WITH_EDITOR)
-    find_package(imgui REQUIRED)
+    # 1. imgui
+    if(NOT TARGET imgui::imgui)
+        find_package(imgui QUIET)
+        
+        if(NOT TARGET imgui::imgui AND NOT imgui_FOUND)
+            find_path(IMGUI_INCLUDE_DIR NAMES imgui.h)
+            find_library(IMGUI_LIBRARY NAMES imgui)
+            if(IMGUI_INCLUDE_DIR AND IMGUI_LIBRARY)
+                add_library(imgui::imgui UNKNOWN IMPORTED)
+                set_target_properties(imgui::imgui PROPERTIES
+                    IMPORTED_LOCATION "${IMGUI_LIBRARY}"
+                    INTERFACE_INCLUDE_DIRECTORIES "${IMGUI_INCLUDE_DIR}"
+                )
+            else()
+                message(FATAL_ERROR "imgui required but not found!")
+            endif()
+        endif()
+    endif()
+
+    # 2. imgui_color_text_edit
+    if(NOT TARGET imgui_color_text_edit)
+        find_path(IMGUI_CTE_INCLUDE_DIR NAMES TextEditor.h)
+        find_library(IMGUI_CTE_LIBRARY NAMES imgui_color_text_edit)
+        if(IMGUI_CTE_INCLUDE_DIR AND IMGUI_CTE_LIBRARY)
+            add_library(imgui_color_text_edit UNKNOWN IMPORTED)
+            set_target_properties(imgui_color_text_edit PROPERTIES
+                IMPORTED_LOCATION "${IMGUI_CTE_LIBRARY}"
+                INTERFACE_INCLUDE_DIRECTORIES "${IMGUI_CTE_INCLUDE_DIR}"
+            )
+        else()
+            message(FATAL_ERROR "imgui_color_text_edit required but not found!")
+        endif()
+    endif()
 endif()
 
 # ==========================================================================
