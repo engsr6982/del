@@ -212,7 +212,7 @@ std::unique_ptr<ASTNode> Parser::ParsePrefixExpression() {
 
 std::unique_ptr<ASTNode> Parser::ParseGroupedExpression() {
   NextToken(); // 消费 '('
-  std::vector<std::unique_ptr<ASTNode>> elements;
+  ASTNodes elements;
   elements.push_back(ParseExpression(Precedence::kLowest));
 
   // 循环解析逗号分隔的标识符或表达式
@@ -286,7 +286,7 @@ std::unique_ptr<ASTNode> Parser::ParseCallExpression(std::unique_ptr<ASTNode> le
   }
   std::string func_name = ident_node->name();
   NextToken(); // 消费 '('
-  std::vector<std::unique_ptr<ASTNode>> args;
+  Arguments args;
   if (cur_token_.type != TokenType::kRparen) {
     args.push_back(ParseExpression(Precedence::kLowest));
     while (peek_token_.type == TokenType::kComma) {

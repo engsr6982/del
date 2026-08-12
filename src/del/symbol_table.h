@@ -8,15 +8,19 @@
 
 #include "macro.h"
 
+#include "ast.h"
+
 namespace del {
 
 class ASTNode;
 struct EvaluationContext;
 
+using ExprEvaluator = std::function<nlohmann::json(ASTNode const&, EvaluationContext&)>;
+
 using CustomFunction = std::function<nlohmann::json(
-    std::vector<std::unique_ptr<ASTNode>> const&                             args,   //
-    EvaluationContext&                                                       ctx,    //
-    std::function<nlohmann::json(ASTNode const&, EvaluationContext&)> const& eval_fn //
+    Arguments const&     args,   //
+    EvaluationContext&   ctx,    //
+    ExprEvaluator const& eval_fn //
 )>;
 
 class SymbolTable {

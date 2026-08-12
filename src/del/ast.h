@@ -24,6 +24,8 @@ public:
   [[nodiscard]] virtual const ASTNode* GetUnderlyingNode() const; // for ReferenceNode
 };
 
+using ASTNodes  = std::vector<std::unique_ptr<ASTNode>>;
+using Arguments = ASTNodes;
 
 // impl
 
@@ -135,16 +137,16 @@ private:
 
 class TupleNode : public ASTNode {
 public:
-  explicit TupleNode(std::vector<std::unique_ptr<ASTNode>> elements);
+  explicit TupleNode(ASTNodes elements);
 
-  const std::vector<std::unique_ptr<ASTNode>>& elements() const;
+  const ASTNodes& elements() const;
 
   nlohmann::json Evaluate(EvaluationContext&) const override;
 
   std::string ToString() const override;
 
 private:
-  std::vector<std::unique_ptr<ASTNode>> elements_;
+  ASTNodes elements_;
 };
 
 class LambdaNode : public ASTNode {
@@ -165,18 +167,18 @@ private:
 
 class CallNode : public ASTNode {
 public:
-  CallNode(std::string name, std::vector<std::unique_ptr<ASTNode>> args);
+  CallNode(std::string name, Arguments args);
 
-  const std::string&                           name() const;
-  const std::vector<std::unique_ptr<ASTNode>>& args() const;
+  const std::string& name() const;
+  const Arguments&   args() const;
 
   nlohmann::json Evaluate(EvaluationContext& ctx) const override;
 
   std::string ToString() const override;
 
 private:
-  std::string                           name_;
-  std::vector<std::unique_ptr<ASTNode>> args_;
+  std::string name_;
+  Arguments   args_;
 };
 
 // 辅助注入节点：用于管道执行

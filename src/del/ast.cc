@@ -229,8 +229,8 @@ std::string TernaryNode::ToString() const {
 }
 
 
-TupleNode::TupleNode(std::vector<std::unique_ptr<ASTNode>> elements) : elements_(std::move(elements)) {}
-const std::vector<std::unique_ptr<ASTNode>>& TupleNode::elements() const { return elements_; }
+TupleNode::TupleNode(ASTNodes elements) : elements_(std::move(elements)) {}
+const ASTNodes& TupleNode::elements() const { return elements_; }
 
 nlohmann::json TupleNode::Evaluate(EvaluationContext&) const {
   throw RuntimeError("Tuple expressions cannot be evaluated outside lambda parameter lists");
@@ -268,12 +268,10 @@ std::string LambdaNode::ToString() const {
 }
 
 
-CallNode::CallNode(std::string name, std::vector<std::unique_ptr<ASTNode>> args)
-: name_(std::move(name)),
-  args_(std::move(args)) {}
+CallNode::CallNode(std::string name, Arguments args) : name_(std::move(name)), args_(std::move(args)) {}
 
-const std::string&                           CallNode::name() const { return name_; }
-const std::vector<std::unique_ptr<ASTNode>>& CallNode::args() const { return args_; }
+const std::string& CallNode::name() const { return name_; }
+const Arguments&   CallNode::args() const { return args_; }
 
 nlohmann::json CallNode::Evaluate(EvaluationContext& ctx) const {
   const auto* func = ctx.symbol_table.Lookup(name_);
@@ -319,7 +317,7 @@ nlohmann::json PipelineNode::Evaluate(EvaluationContext& ctx) const {
       throw RuntimeError("Undefined function in pipeline: " + call_node->name());
     }
 
-    std::vector<std::unique_ptr<ASTNode>> virtual_args;
+    Arguments virtual_args;
     virtual_args.push_back(std::make_unique<PreEvaluatedNode>(std::move(left_val)));
     for (const auto& arg : call_node->args()) {
       virtual_args.push_back(std::make_unique<ReferenceNode>(*arg));
@@ -334,7 +332,7 @@ nlohmann::json PipelineNode::Evaluate(EvaluationContext& ctx) const {
       throw RuntimeError("Undefined function in pipeline: " + ident_node->name());
     }
 
-    std::vector<std::unique_ptr<ASTNode>> virtual_args;
+    Arguments virtual_args;
     virtual_args.push_back(std::make_unique<PreEvaluatedNode>(std::move(left_val)));
 
     return (*func)(virtual_args, ctx, [](const ASTNode& node, EvaluationContext& c) { return node.Evaluate(c); });
