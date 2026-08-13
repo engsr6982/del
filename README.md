@@ -14,7 +14,7 @@ DEL 本质是基于 JSON Pointer + JSON 文件 (DEL 称之为模板) 实现的�
 ```json
 {
   "/schema_version": "32",
-  "/mLandContext/mOwner": "@/old_data/uuid |> remove_char('-')",
+  "/mLandContext/mOwner": "@/old_data/uuid |> replace('-', '')",
   "/mLandContext/mFlags/isValid": "is_valid($/mLandContext/mOwner) ? true : false"
 }
 ```
@@ -46,8 +46,8 @@ _执行顺序约束：C++ 引擎应按照 JSON 模板解析出的键值对顺序
 
 - **管道**：`|>`
   - 管道符会自动将其**左侧表达式的求值结果**，作为**右侧函数的第一个隐式参数**注入。
-  - 写法：`@/raw_str |> remove_char('-') |> to_lower()`
-  - 底层等价于：`to_lower(remove_char(@/raw_str, '-'))`
+  - 写法：`@/raw_str |> replace('-', '') |> to_lower()`
+  - 底层等价于：`to_lower(replace(@/raw_str, '-', ''))`
 - **控制流**：`?`, `:`, `??`
 - **逻辑运算**：`&&`, `||`, `!`
 - **关系运算**：`==`, `!=`, `>`, `<`, `>=`, `<=`
@@ -91,29 +91,44 @@ _执行顺序约束：C++ 引擎应按照 JSON 模板解析出的键值对顺序
   - `@/num == "1"` ➜ **运行时抛出异常**（类型不匹配）。
   - `true || "true"` ➜ **运行时抛出异常**（非布尔值参与逻辑运算）。
 
+## 语法糖
+
+### 1. 管道符
+
+在管道符中，左侧表达式的求值结果，会自动作为右侧函数的第一个隐式参数注入。
+
+如果右侧函数具有多个参数，则左侧表达式的求值结果会隐式作为第一个参数，后续参数需要显式传递。
+
+如果右侧的函数仅有一个参数，可以省略括号。
+
+```del
+@/foo/bar |> remove_suffix('-') // 等价于 remove_suffix(@/foo/bar, '-')
+
+@/foo/bar |> to_upper // 等价于 to_upper(@/foo/bar)
+```
+
+---
+
 ## 符号表
 
 DEL 的高阶操作均由内置函数实现，每个函数均接受一个或多个参数，并返回一个值。
 
-> 函数名区分大小写，禁止
+### 字符串处理函数
 
-### 内置函数
+#### `trim` - 去除字符串首尾的空白字符
 
-#### `remove_char` - 移除字符串中的指定字符
-
-- 原型: `remove_char(str, char_str)`
-  - `char_str`: `string`
-    - 参数为单个字符，不支持字符串。
+- 原型: `trim(str) -> str`
+  - `str`: `string`
 - 返回: `string`
-  - 移除指定字符后的字符串。
+  - 去除首尾空白字符后的字符串。
 
 ```del
-@/foo/bar |> remove_char('-')
+@/foo/bar |> trim
 ```
 
 #### `to_lower` - 将字符串转为小写
 
-- 原型: `to_lower(str)`
+- 原型: `to_lower(str) -> str`
   - `str`: `string`
 - 返回: `string`
   - 转为小写后的字符串。
@@ -128,7 +143,7 @@ DEL 的高阶操作均由内置函数实现，每个函数均接受一个或多�
 
 #### `to_upper` - 将字符串转为大写
 
-- 原型: `to_upper(str)`
+- 原型: `to_upper(str) -> str`
   - `str`: `string`
 - 返回: `string`
   - 转为大写后的字符串。
@@ -137,20 +152,9 @@ DEL 的高阶操作均由内置函数实现，每个函数均接受一个或多�
 @/foo/bar |> to_upper
 ```
 
-#### `trim` - 去除字符串首尾的空白字符
-
-- 原型: `trim(str)`
-  - `str`: `string`
-- 返回: `string`
-  - 去除首尾空白字符后的字符串。
-
-```del
-@/foo/bar |> trim
-```
-
 #### `remove_suffix` - 从字符串中移除指定后缀
 
-- 原型: `remove_suffix(str, suffix_str)`
+- 原型: `remove_suffix(str, suffix_str) -> str`
   - `str`: `string`
   - `suffix_str`: `string`
 - 返回: `string`
@@ -160,9 +164,71 @@ DEL 的高阶操作均由内置函数实现，每个函数均接受一个或多�
 @/foo/bar |> remove_suffix('abcd')
 ```
 
+#### `replace` - 替换字符串中的子串
+
+- 原型: `replace(str, from, to) -> str`
+  - `str`: `string`
+    - 输入字符串。
+  - `from`: `string`
+    - 需要被替换的子串。
+  - `to`: `string`
+    - 替换后的子串。
+- 返回: `string`
+  - 替换后的字符串。
+
+```del
+@/foo/bar |> replace('-', '')
+```
+
+#### `substr` - 截取字符串的子串
+
+- 原型: `substr(str, start, length) -> str`
+  - `str`: `string`
+    - 输入字符串。
+  - `start`: `number`
+    - 子串的起始位置。
+  - `length`: `number`
+    - 子串的长度。
+- 返回: `string`
+  - 截取后的子串。
+
+```del
+@/foo/bar |> substr(0, 3)
+```
+
+#### `starts_with` - 判断字符串是否以指定前缀开头
+
+- 原型: `starts_with(str, prefix) -> bool`
+  - `str`: `string`
+    - 输入字符串。
+  - `prefix`: `string`
+    - 前缀字符串。
+- 返回: `bool`
+  - 是否以指定前缀开头。
+
+```del
+@/foo/bar |> starts_with('foo') ? ... : ...
+```
+
+#### `ends_with` - 判断字符串是否以指定后缀结尾
+
+- 原型: `ends_with(str, suffix) -> bool`
+  - `str`: `string`
+    - 输入字符串。
+  - `suffix`: `string`
+    - 后缀字符串。
+- 返回: `bool`
+  - 是否以指定后缀结尾。
+
+```del
+@/foo/bar |> ends_with('bar') ? ... : ...
+```
+
+### 类型处理函数
+
 #### `is_null` - 判断参数是否为 null
 
-- 原型: `is_null(any)`
+- 原型: `is_null(any) -> bool`
   - `any`: `any`
 - 返回: `bool`
   - 参数是否为 null。
@@ -175,7 +241,7 @@ is_null(@/foo/bar) ? ... : ...
 
 #### `to_str` - 将任意类型转为字符串
 
-- 原型: `to_str(any)`
+- 原型: `to_str(any) -> bool`
   - `any`: `any`
 - 返回: `string`
   - 将任意类型转为字符串。
@@ -189,9 +255,39 @@ to_str(@/foo/bar)
 @/foo/bar |> to_str
 ```
 
+#### `to_number` - 将字符串转为数字
+
+- 原型: `to_number(str) -> number`
+  - `str`: `string
+- 返回: `number`
+
+> 如果输入是 `number` 函数会直接返回原值。
+
+### 容器处理函数
+
+#### `object` - 创建一个空的 JSON 对象
+
+- 原型: `object() -> object {}`
+- 返回: `object`
+
+```del
+object()
+// 返回: {}
+```
+
+#### `array` - 创建一个空的 JSON 数组
+
+- 原型: `array() -> array []`
+- 返回: `array`
+
+```del
+array()
+// 返回: []
+```
+
 #### `entry` - 创建一个 JSON 键值对对象
 
-- 原型: `entry(key, value)`
+- 原型: `entry(key, val) -> object {key: val}`
   - `key`: `string`
     - 参数必须为字符串类型。
   - `value`: `any`
@@ -205,7 +301,7 @@ entry('foo', 'bar')
 
 #### `map` - 遍历数组中的元素并返回一个新数组
 
-- 原型: `map(array, lambda)`
+- 原型: `map(array, lambda) -> array [T]`
   - `array`: `array`
   - `lambda`: `(element, index) -> ...`
     - `element`: `T`
@@ -224,7 +320,7 @@ entry('foo', 'bar')
 
 #### `map_object` - 遍历对象中的键值对并返回一个新对象
 
-- 原型: `map_object(obj, lambda)`
+- 原型: `map_object(obj, lambda) -> object {key: T}`
   - `obj`: `object`
   - `lambda`: `(key, value, index) -> ...`
     - `key`: `string`
@@ -248,34 +344,16 @@ entry('foo', 'bar')
 // { "x": 1, "y": 2, "z": 3 }
 ```
 
-#### `object` - 创建一个空的 JSON 对象
-
-- 原型: `object()`
-- 返回: `object`
-
-```del
-object()
-// 返回: {}
-```
-
-#### `array` - 创建一个空的 JSON 数组
-
-- 原型: `array()`
-- 返回: `array`
-
-```del
-array()
-// 返回: []
-```
-
 #### `put` - 向 JSON 容器中添加键值对
 
-- 原型: `put(container, key_index, value)`
+- 原型: `put(container, key_index, value) -> container`
   - `container`: `object` 或 `array`
   - `key_index`: `string` 或 `number`
   - `value`: `any`
 - 返回: `object` 或 `array`
   - 添加键值对后的 JSON 容器。
+
+> 当 `index` 等于数组长度时，执行追加操作；大于长度则抛出越界异常。
 
 ```del
 // 对新建的对象添加键值对
@@ -287,7 +365,7 @@ array() |> put(0, 'foo') // ["foo"]
 
 #### `reduce` - 遍历数组并返回一个新容器
 
-- 原型: `reduce(array, init, lambda)`
+- 原型: `reduce(array, init, lambda) -> T`
   - `array`: `array`
     - 要遍历的数组
   - `init`: `any`
@@ -309,12 +387,14 @@ array() |> put(0, 'foo') |> reduce(object(), (acc, el) -> put(acc, el, true)) //
 
 #### `filter` - 过滤数组中的元素并返回一个新数组
 
-- 原型: `filter(array, lambda)`
+- 原型: `filter(array, lambda) -> array [T]`
   - `array`: `array`
     - 要过滤的数组
-  - `lambda`: `(element) -> ...`
+  - `lambda`: `(element [, index]) -> ...`
     - `element`: `T`
       - 指向 `array` 中的每一个元素(迭代), `element` 类型取决于输入类型。
+    - `index` : `number`
+      - 指向 `array` 中的每一个元素(迭代)的索引, 此参数可选。
     - 返回: `bool`
       - 是否保留当前元素。
 - 返回: `array`
@@ -324,20 +404,73 @@ array() |> put(0, 'foo') |> reduce(object(), (acc, el) -> put(acc, el, true)) //
 @/foo/bar |> filter((element) -> element == 'foo')
 ```
 
----
+#### `split` - 将字符串按指定分隔符拆分为数组
 
-## 语法糖
-
-### 1. 管道符
-
-在管道符中，左侧表达式的求值结果，会自动作为右侧函数的第一个隐式参数注入。
-
-如果右侧函数具有多个参数，则左侧表达式的求值结果会隐式作为第一个参数，后续参数需要显式传递。
-
-如果右侧的函数仅有一个参数，可以省略括号。
+- 原型: `split(str, delimiter) -> array [string]`
+  - `str`: `string`
+    - 要拆分的字符串。
+  - `delimiter`: `string`
+    - 分隔符, 可选, 默认为 ","
+- 返回: `array`
+  - 拆分后的数组。
 
 ```del
-@/foo/bar |> remove_suffix('-') // 等价于 remove_suffix(@/foo/bar, '-')
+@/foo/bar |> split()
 
-@/foo/bar |> to_upper // 等价于 to_upper(@/foo/bar)
+@/foo/bar |> split('-')
 ```
+
+#### `join` - 将数组按指定分隔符连接为字符串
+
+- 原型: `join(array, separator) -> string`
+  - `array`: `array`
+    - 要连接的数组。
+  - `separator`: `string`
+    - 分隔符, 可选, 默认为 ","
+- 返回: `string`
+  - 连接后的字符串。
+
+```del
+@/foo/bar |> join()
+
+@/foo/bar |> join('-')
+```
+
+#### `length` - 获取 JSON 容器(字符串)的长度
+
+- 原型: `length(container) -> number`
+  - `container`: `object` 或 `array` 或 `string`
+- 返回: `number`
+  - JSON 容器的长度。
+
+> 此函数兼容获取字符串长度。
+
+#### `keys` - 获取 JSON 对象的键列表
+
+- 原型: `keys(obj) -> array [string]`
+  - `obj`: `object`
+    - 要获取键列表的对象。
+- 返回: `array`
+  - JSON 对象的键列表。
+
+#### `values` - 获取 JSON 对象的值列表
+
+- 原型: `values(obj) -> array [T]`
+  - `obj`: `object`
+    - 要获取值列表的对象。
+- 返回: `array`
+  - JSON 对象的值列表。
+
+#### `contains` - 判断 JSON 容器(字符串)是否包含指定元素
+
+- 原型: `contains(container, element) -> bool`
+  - `container`: `object` 或 `array` 或 `string`
+    - 输入容器类型。
+  - `element`: `any`
+    - 要查找的元素。
+- 返回: `bool`
+  - JSON 容器是否包含指定元素。
+
+> 此函数兼容字符串查找。  
+> 对于 `object` 类型, `element` 必须为 `string` 类型。  
+> 对于 `array` 类型, `element` 类型取决于输入类型。

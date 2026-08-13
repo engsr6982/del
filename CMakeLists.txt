@@ -91,6 +91,7 @@ set(DEL_SOURCES
     src/del/symbol_table.h     src/del/symbol_table.cc
     src/del/ast.h              src/del/ast.cc
     src/del/parser.h           src/del/parser.cc
+    src/del/bultin_function.h  src/del/bultin_function.cc
     src/del/template_engine.h  src/del/template_engine.cc
 )
 

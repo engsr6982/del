@@ -5,7 +5,7 @@
 
 namespace del {
 
-class SyntaxError final : public std::exception {
+class SyntaxError final : public ::std::exception {
   std::string message_;
   size_t      line_;
   size_t      col_;
@@ -30,7 +30,7 @@ public:
 };
 
 
-class RuntimeError final : public std::exception {
+class RuntimeError final : public ::std::exception {
   std::string message_;
   std::string full_message_;
 
