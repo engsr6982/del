@@ -10,16 +10,20 @@ InputPanel::InputPanel() {
   editor_.showStatusBar = false;
 }
 
-void InputPanel::Render(ImGuiID dockspace_id) {
-  ImGui::SetNextWindowDockID(dockspace_id, ImGuiCond_FirstUseEver);
-  if (!ImGui::Begin(kPanelName, &open, ImGuiWindowFlags_MenuBar)) {
+void InputPanel::Render(DockID dockspace_id, std::string const& window_title) {
+  if (dockspace_id != 0) {
+    ImGui::SetNextWindowDockID(static_cast<ImGuiID>(dockspace_id), ImGuiCond_FirstUseEver);
+  }
+  if (!ImGui::Begin(window_title.c_str(), &open, ImGuiWindowFlags_MenuBar)) {
     ImGui::End();
     return;
   }
 
-  editor_.render();
+  RenderContent();
   ImGui::End();
 }
+
+void InputPanel::RenderContent() { editor_.render(); }
 
 void InputPanel::SetText(std::string const& text) { editor_.getEditor().SetText(text); }
 

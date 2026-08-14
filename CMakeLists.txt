@@ -135,6 +135,7 @@ target_link_libraries(del PUBLIC
 if(DEL_WITH_EDITOR)
     set(DEL_EDITOR_SOURCES
         src/del-editor/bootstrap.h                  src/del-editor/bootstrap.cc
+        src/del-editor/dock_id.h
         src/del-editor/panel/input_panel.h          src/del-editor/panel/input_panel.cc
         src/del-editor/panel/editor_panel.h         src/del-editor/panel/editor_panel.cc
         src/del-editor/panel/output_panel.h         src/del-editor/panel/output_panel.cc

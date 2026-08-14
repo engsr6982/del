@@ -4,6 +4,8 @@
 
 #include "TextEditor.h"
 
+#include "del-editor/dock_id.h"
+
 namespace del_editor {
 
 /// @brief Output panel — displays the result JSON produced by the DEL
@@ -12,10 +14,17 @@ class OutputPanel {
 public:
   OutputPanel();
 
-  void Render(ImGuiID dockspace_id);
+  /// Render the panel as a window docked into `dockspace_id`
+  /// (0 = plain floating window, no docking request). The window title is
+  /// supplied by the host (EditorBootstrap namespaces it per instance).
+  void Render(DockID dockspace_id, std::string const& window_title);
 
-  void SetText(std::string const& text);
-  [[nodiscard]] std::string GetText() const;
+  /// Render the panel content into the current window (no Begin/End).
+  /// Used by the flat fallback layout when the host has no docking.
+  void RenderContent();
+
+  void                             SetText(std::string const& text);
+  [[nodiscard]] std::string const& GetText() const { return text_; }
 
   bool open = true;
 

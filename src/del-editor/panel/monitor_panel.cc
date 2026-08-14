@@ -4,23 +4,29 @@
 
 namespace del_editor {
 
-void MonitorPanel::Render(ImGuiID dockspace_id) {
-  ImGui::SetNextWindowDockID(dockspace_id, ImGuiCond_FirstUseEver);
-  if (!ImGui::Begin(kPanelName, &open)) {
+void MonitorPanel::Render(DockID dockspace_id, std::string const& window_title) {
+  if (dockspace_id != 0) {
+    ImGui::SetNextWindowDockID(static_cast<ImGuiID>(dockspace_id), ImGuiCond_FirstUseEver);
+  }
+  if (!ImGui::Begin(window_title.c_str(), &open)) {
     ImGui::End();
     return;
   }
 
+  RenderContent();
+  ImGui::End();
+}
+
+void MonitorPanel::RenderContent() {
   // ---- performance section ----
   ImGui::TextDisabled("Performance");
   ImGui::Separator();
 
   if (metrics_.compile_us > 0 || metrics_.execute_us > 0) {
-    ImGui::Text("  Compile  %7lld us  (%d expressions)", metrics_.compile_us,
-                metrics_.expr_count);
+    ImGui::Text("  Compile  %7lld us  (%d expressions)", metrics_.compile_us, metrics_.expr_count);
     ImGui::Text("  Execute  %7lld us", metrics_.execute_us);
     long long total = metrics_.compile_us + metrics_.execute_us;
-    ImGui::Text("  Total    %7lld us  (%.2f ms)", total, total / 1000.0);
+    ImGui::Text("  Total    %7lld us  (%.2f ms)", total, static_cast<double>(total) / 1000.0);
   } else {
     ImGui::TextDisabled("  No data yet.");
   }
@@ -37,8 +43,12 @@ void MonitorPanel::Render(ImGuiID dockspace_id) {
   ImGui::TextDisabled("%zu message(s)", errors_.size());
   ImGui::Separator();
 
-  if (ImGui::BeginChild("##MonitorErrorList", ImVec2(0, 0), ImGuiChildFlags_None,
-                         ImGuiWindowFlags_HorizontalScrollbar)) {
+  if (ImGui::BeginChild(
+          "##MonitorErrorList",
+          ImVec2(0, 0),
+          ImGuiChildFlags_None,
+          ImGuiWindowFlags_HorizontalScrollbar
+      )) {
     ImGuiListClipper clipper;
     clipper.Begin(static_cast<int>(errors_.size()));
     while (clipper.Step()) {
@@ -49,13 +59,9 @@ void MonitorPanel::Render(ImGuiID dockspace_id) {
     }
   }
   ImGui::EndChild();
-
-  ImGui::End();
 }
 
-void MonitorPanel::AddError(std::string msg) {
-  errors_.push_back(std::move(msg));
-}
+void MonitorPanel::AddError(std::string msg) { errors_.push_back(std::move(msg)); }
 
 void MonitorPanel::ClearErrors() { errors_.clear(); }
 

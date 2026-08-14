@@ -180,7 +180,6 @@ void CodeEditor::renderStatusBar() {
       TextEditor::Language::Sql()
   };
 
-  ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
   ImGui::BeginChild("StatusBar", ImVec2(0.0f, 0.0f), ImGuiChildFlags_Borders);
 
   // language selector
@@ -238,7 +237,6 @@ void CodeEditor::renderStatusBar() {
   ImGui::TextUnformatted(rhs);
 
   ImGui::EndChild();
-  ImGui::PopStyleColor();
 }
 
 // --- autocomplete ----------------------------------------------------------
