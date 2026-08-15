@@ -120,6 +120,12 @@ public:
   /// The configured window name (== config.window_name).
   [[nodiscard]] std::string const& windowName() const { return config_.window_name; }
 
+  /// Set/update the host dockspace the panels dock into (own_window=false).
+  /// Useful when the host creates its dockspace lazily (e.g. after the
+  /// editor was constructed); call once per frame until it reports non-zero.
+  void                 SetHostDockspace(DockID id) { config_.host_dockspace_id = id; }
+  [[nodiscard]] DockID hostDockspace() const { return config_.host_dockspace_id; }
+
 private:
   void RenderToolbar();
   void RenderPanels(DockID dockspace_id);
