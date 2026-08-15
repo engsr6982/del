@@ -45,7 +45,7 @@ private:
   TextEditor       editor_;
   TextEditor::Trie trie_;
   bool             autocomplete_ = false;
-  float            font_size_    = 15.0f;
+  float            font_size_    = 16.0f;
 };
 
 } // namespace del_editor

@@ -49,40 +49,35 @@ void EditorBootstrap::Render() {
   bool const docking_enabled = (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_DockingEnable) != 0;
 
   if (config_.own_window) {
-    // --- wrapper window (toolbar + internal dockspace / flat fallback) ----
-    // NoDocking prevents the wrapper window itself from being docked into a
-    // parent dockspace, avoiding flickering / deadlock when the host also
-    // uses docking with this window. Set `dockable` to opt into host docking.
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse;
-    if (!config_.dockable) window_flags |= ImGuiWindowFlags_NoDocking;
-
-    ImGui::SetNextWindowSize(ImVec2(config_.initial_width, config_.initial_height), ImGuiCond_FirstUseEver);
-
-    if (!ImGui::Begin(config_.window_name.c_str(), &open_, window_flags)) {
-      ImGui::End();
-      return;
-    }
-
-    // --- toolbar ---
+    // --- standalone fullscreen mode ---
+    // The editor is the only window in the context, so there is no wrapper
+    // window: a main menu bar plus a fullscreen dockspace fill the viewport.
     RenderToolbar();
 
     if (docking_enabled) {
-      // --- central dockspace (internal docking only) ---
-      // The ID is derived from the wrapper window's ID stack, so it is
-      // unique per editor instance and cannot collide with host dockspaces.
+      // ID is derived at the top of the ID stack, unique per context.
       DockID dockspace_id = ImGui::GetID("##EditorDockSpace");
-      ImGui::DockSpace(static_cast<ImGuiID>(dockspace_id), ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
+      ImGui::DockSpaceOverViewport(static_cast<ImGuiID>(dockspace_id), nullptr, ImGuiDockNodeFlags_PassthruCentralNode);
       RenderPanels(dockspace_id);
     } else {
-      // Host has no docking — stack the panels inside the wrapper window.
-      RenderPanelsFlat();
+      // Host without docking — fullscreen window with a stacked layout.
+      ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove
+                                    | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings
+                                    | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+      ImGui::SetNextWindowPos(ImGui::GetMainViewport()->WorkPos);
+      ImGui::SetNextWindowSize(ImGui::GetMainViewport()->WorkSize);
+      if (ImGui::Begin(config_.window_name.c_str(), nullptr, window_flags)) {
+        RenderPanelsFlat();
+      }
+      ImGui::End();
     }
-
-    ImGui::End();
   } else {
     // --- host-owned layout: panels dock into the host's dockspace ----
     // No wrapper window, no toolbar — the host provides its own chrome and
     // controls the panels through SetPanelOpen / LoadSourceText & co.
+    // Panels carry no docking restrictions: they can be dragged out of the
+    // editor group and docked anywhere in the host layout, and host windows
+    // can dock into the panel group (plain dock nodes, ImGui defaults).
     DockID host_dockspace = (docking_enabled && config_.host_dockspace_id != 0)
                               ? config_.host_dockspace_id
                               : 0; // no docking available -> plain floating windows
@@ -107,8 +102,8 @@ void EditorBootstrap::RenderPanels(DockID dockspace_id) {
 
 void EditorBootstrap::RenderPanelsFlat() {
   // Fallback layout for hosts without docking: stack the visible panels
-  // vertically inside the wrapper window, each in a bordered child region.
-  // The last visible panel fills the remaining height.
+  // vertically inside the fullscreen window, each in a bordered child
+  // region. The last visible panel fills the remaining height.
   int const visible = (show_input_ ? 1 : 0) + (show_editor_ ? 1 : 0) + (show_output_ ? 1 : 0) + (show_monitor_ ? 1 : 0);
   if (visible == 0) return;
 
@@ -134,7 +129,8 @@ void EditorBootstrap::RenderPanelsFlat() {
 // --- toolbar ---------------------------------------------------------------
 
 void EditorBootstrap::RenderToolbar() {
-  if (!ImGui::BeginMenuBar()) return;
+  // 全屏模式的全局菜单栏 (own_window=true 专用; 嵌入模式不渲染工具栏)
+  if (!ImGui::BeginMainMenuBar()) return;
 
   // ---- file loading ----
   // Source JSON
@@ -145,9 +141,10 @@ void EditorBootstrap::RenderToolbar() {
     std::string content = ReadFileToString(source_path_);
     if (!content.empty()) LoadSourceText(content);
   }
-  ImGui::SameLine();
-  if (ImGui::SmallButton("...##BrowseSource")) {
-    if (callbacks_.open_file) {
+  // 浏览按钮依赖宿主提供 open_file 回调; 未提供时只保留手动 Load
+  if (callbacks_.open_file) {
+    ImGui::SameLine();
+    if (ImGui::SmallButton("...##BrowseSource")) {
       std::string path = callbacks_.open_file("json");
       if (!path.empty()) {
         size_t n            = path.copy(source_path_, sizeof(source_path_) - 1);
@@ -170,9 +167,9 @@ void EditorBootstrap::RenderToolbar() {
     std::string content = ReadFileToString(template_path_);
     if (!content.empty()) LoadTemplateText(content);
   }
-  ImGui::SameLine();
-  if (ImGui::SmallButton("...##BrowseTemplate")) {
-    if (callbacks_.open_file) {
+  if (callbacks_.open_file) {
+    ImGui::SameLine();
+    if (ImGui::SmallButton("...##BrowseTemplate")) {
       std::string path = callbacks_.open_file("json");
       if (!path.empty()) {
         size_t n            = path.copy(template_path_, sizeof(template_path_) - 1);
@@ -204,11 +201,14 @@ void EditorBootstrap::RenderToolbar() {
   ImGui::SameLine();
 
   // ---- panel visibility toggles ----
-  // Checking a panel back on also reopens it if the user closed it via its
-  // close button (the per-panel `open` flag and the toolbar toggle are
-  // otherwise independent states).
+  // Checkbox state mirrors `show && open`: closing a panel via its X button
+  // unchecks it here, re-checking reopens it.
   auto toggle = [](char const* label, bool& show, bool& panel_open) {
-    if (ImGui::Checkbox(label, &show) && show) panel_open = true;
+    bool checked = show && panel_open;
+    if (ImGui::Checkbox(label, &checked)) {
+      show       = checked;
+      panel_open = checked;
+    }
     ImGui::SameLine();
   };
   toggle("Input", show_input_, input_panel_.open);
@@ -216,7 +216,7 @@ void EditorBootstrap::RenderToolbar() {
   toggle("Output", show_output_, output_panel_.open);
   toggle("Monitor", show_monitor_, monitor_panel_.open);
 
-  ImGui::EndMenuBar();
+  ImGui::EndMainMenuBar();
 }
 
 // --- public helpers --------------------------------------------------------

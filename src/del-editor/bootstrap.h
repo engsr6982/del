@@ -28,7 +28,7 @@ struct EditorHostCallbacks {
 /// The editor is host-agnostic: it never touches the ImGui context's fonts,
 /// style or ini file — those belong to the host. It only creates windows,
 /// so it is safe to embed into any host ImGui context, with or without
-/// docking enabled (docking-disabled hosts get a stacked fallback layout).
+/// docking enabled.
 struct EditorConfig {
   /// Window name. Must be unique within the host's ImGui context.
   std::string window_name = "DEL Live Editor";
@@ -41,40 +41,43 @@ struct EditorConfig {
   /// E.g. " (DEL)" → "Template (DEL)".
   std::string panel_title_suffix;
 
-  /// Render a wrapper window (toolbar + internal dockspace) around the
-  /// panels. When false the panels are rendered as top-level windows docked
-  /// directly into the host's dockspace (`host_dockspace_id`) and the
-  /// toolbar is omitted — the host provides its own chrome.
+  /// Rendering mode:
+  /// - true (default): standalone fullscreen. The editor is the only
+  ///   window in the context — a main menu bar plus a fullscreen
+  ///   dockspace fills the viewport (no wrapper window).
+  /// - false: embedding. The panels are rendered as top-level windows
+  ///   docked directly into the host's dockspace (`host_dockspace_id`),
+  ///   fully merging into the host's layout. The toolbar is omitted —
+  ///   the host provides its own chrome.
   bool own_window = true;
-
-  /// When own_window is true: allow the wrapper window itself to be docked
-  /// into the host's layout (omit ImGuiWindowFlags_NoDocking). The default
-  /// (NoDocking) keeps the editor self-contained and avoids flicker when
-  /// the host also uses docking.
-  bool dockable = false;
 
   /// When own_window is false: the host dockspace the panels dock into on
   /// first use. 0 (or a host without docking) degrades to plain floating
   /// windows.
+  ///
+  /// Inter-docking UX (both allowed by default):
+  /// - Panels can be dragged out of the editor group and docked anywhere
+  ///   in the host's layout (or float) — the panels carry no docking
+  ///   restrictions.
+  /// - Host windows can be docked into the editor's panel group — panel
+  ///   nodes are ordinary dock nodes, so ImGui's default behaviour
+  ///   applies. No nested dockspace container is created on purpose:
+  ///   nested dockspaces fight the host's own layout management.
   DockID host_dockspace_id = 0;
-
-  /// Initial wrapper window size (own_window only).
-  float initial_width  = 1280.0f;
-  float initial_height = 800.0f;
 };
 
 /// @brief The main editor instance.
 ///
-/// In its default configuration it renders a top-level window containing a
-/// toolbar and a dockspace. All panels (Input, Template, Output, Monitor)
-/// live inside this window and can be rearranged via docking *within* the
-/// editor instance only.
+/// In its default configuration (own_window = true) it fills the viewport
+/// with a main menu bar and a fullscreen dockspace; all panels (Input,
+/// Template, Output, Monitor) live in that dockspace.
 ///
-/// Embedding modes (see EditorConfig):
-/// - own_window = true (default): self-contained window; set `dockable` to
-///   allow the host to dock the whole editor into its own layout.
-/// - own_window = false: panels dock straight into the host's dockspace
-///   (`host_dockspace_id`), fully merging into the host's layout.
+/// Rendering modes (see EditorConfig):
+/// - own_window = true (default): standalone fullscreen — menu bar +
+///   fullscreen dockspace over the whole viewport, no wrapper window.
+/// - own_window = false: embedding — panels dock straight into the host's
+///   dockspace (`host_dockspace_id`), fully merging into the host's layout.
+///   Panels and host windows can inter-dock freely (see host_dockspace_id).
 /// - Host without ImGuiConfigFlags_DockingEnable: a stacked fallback layout
 ///   is rendered instead of a dockspace.
 ///
@@ -101,8 +104,8 @@ public:
   void LoadSourceText(std::string const& text);
   void LoadTemplateText(std::string const& text);
 
-  /// Returns false when the user closes the editor window.
-  /// Use SetOpen(true) to reopen it (e.g. from a host menu toggle).
+  /// Whether the editor should render. Fullscreen mode has no close
+  /// button, so this stays true unless the host calls SetOpen(false).
   [[nodiscard]] bool IsOpen() const { return open_; }
   void               SetOpen(bool open) { open_ = open; }
 

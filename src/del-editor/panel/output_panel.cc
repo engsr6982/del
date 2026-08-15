@@ -11,6 +11,7 @@ OutputPanel::OutputPanel() {
 }
 
 void OutputPanel::Render(DockID dockspace_id, std::string const& window_title) {
+  if (!open) return;
   if (dockspace_id != 0) {
     ImGui::SetNextWindowDockID(static_cast<ImGuiID>(dockspace_id), ImGuiCond_FirstUseEver);
   }

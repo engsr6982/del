@@ -17,8 +17,10 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
-#include <windows.h>
+// clang-format off
+#include <windows.h>   // must precede commdlg.h (which pulls prsht.h)
 #include <commdlg.h>
+// clang-format on
 #endif
 
 #include "imgui.h"
@@ -64,7 +66,7 @@ static void GlfwErrorCallback(int /*error*/, char const* description) {
 /// (Microsoft YaHei / PingFang / Noto Sans CJK) for Chinese glyph coverage.
 /// ImGui ≥ 1.92 auto-rasterises glyphs on demand, so we do NOT specify
 /// explicit glyph ranges or call atlas->Build() — both are deprecated.
-static void LoadFonts(float base_size = 18.0f) {
+static void LoadFonts(float base_size) {
   ImGuiIO&     io    = ImGui::GetIO();
   ImFontAtlas* atlas = io.Fonts;
 
@@ -77,17 +79,16 @@ static void LoadFonts(float base_size = 18.0f) {
   char const* consolas_path = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf";
 #endif
 
-  ImFont* base = atlas->AddFontFromFileTTF(consolas_path, base_size, nullptr,
-                                            atlas->GetGlyphRangesDefault());
+  ImFont* base = atlas->AddFontFromFileTTF(consolas_path, base_size, nullptr, atlas->GetGlyphRangesDefault());
   if (!base) {
     base = atlas->AddFontDefault(); // fallback: built-in font
   }
 
   // ---- CJK font (merged) ----
   ImFontConfig merge_cfg;
-  merge_cfg.MergeMode     = true;
-  merge_cfg.OversampleH   = 2;
-  merge_cfg.OversampleV   = 2;
+  merge_cfg.MergeMode   = true;
+  merge_cfg.OversampleH = 2;
+  merge_cfg.OversampleV = 2;
 
   // Merge mode: glyphs not found in the base font are pulled from here.
   // ImGui ≥ 1.92 auto-rasterises needed glyphs → no ranges needed.
@@ -99,8 +100,7 @@ static void LoadFonts(float base_size = 18.0f) {
   char const* cjk_path = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc";
 #endif
 
-  atlas->AddFontFromFileTTF(cjk_path, base_size, &merge_cfg,
-                             atlas->GetGlyphRangesDefault());
+  atlas->AddFontFromFileTTF(cjk_path, base_size, &merge_cfg, atlas->GetGlyphRangesDefault());
   // CJK load failure is non-fatal — ASCII text still renders fine
 }
 
@@ -111,22 +111,20 @@ static std::string NativeOpenFileDialog(char const* filter_hint) {
   // Build a simple filter string from the hint
   char filter[256] = {};
   if (filter_hint && std::strcmp(filter_hint, "json") == 0) {
-    std::snprintf(filter, sizeof(filter),
-                  "JSON Files (*.json)\0*.json\0All Files (*.*)\0*.*\0");
+    std::snprintf(filter, sizeof(filter), "JSON Files (*.json)\0*.json\0All Files (*.*)\0*.*\0");
   } else {
     std::snprintf(filter, sizeof(filter), "All Files (*.*)\0*.*\0");
   }
 
   char filename[MAX_PATH] = {};
 
-  OPENFILENAMEA ofn       = {};
-  ofn.lStructSize         = sizeof(ofn);
-  ofn.hwndOwner           = nullptr;
-  ofn.lpstrFilter         = filter;
-  ofn.lpstrFile           = filename;
-  ofn.nMaxFile            = sizeof(filename);
-  ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY |
-              OFN_NOCHANGEDIR;
+  OPENFILENAMEA ofn = {};
+  ofn.lStructSize   = sizeof(ofn);
+  ofn.hwndOwner     = nullptr;
+  ofn.lpstrFilter   = filter;
+  ofn.lpstrFile     = filename;
+  ofn.nMaxFile      = sizeof(filename);
+  ofn.Flags         = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
 
   if (GetOpenFileNameA(&ofn)) {
     return std::string(filename);
@@ -154,8 +152,7 @@ int main(int, char**) {
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-  GLFWwindow* window =
-      glfwCreateWindow(1280, 800, "DEL Live Editor", nullptr, nullptr);
+  GLFWwindow* window = glfwCreateWindow(1280, 800, "DEL Live Editor", nullptr, nullptr);
   if (!window) Die("Failed to create GLFW window");
 
   glfwMakeContextCurrent(window);
@@ -165,15 +162,14 @@ int main(int, char**) {
   glewExperimental = GL_TRUE;
   GLenum glew_err  = glewInit();
   if (glew_err != GLEW_OK) {
-    Die("Failed to initialise GLEW: %s",
-        reinterpret_cast<char const*>(glewGetErrorString(glew_err)));
+    Die("Failed to initialise GLEW: %s", reinterpret_cast<char const*>(glewGetErrorString(glew_err)));
   }
   glGetError(); // consume pending error from GLEW init
 
   // -- imgui context --
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
-  ImGuiIO& io = ImGui::GetIO();
+  ImGuiIO& io     = ImGui::GetIO();
   io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
   // Persist layout to a file inside the project so the user can delete it
@@ -182,8 +178,14 @@ int main(int, char**) {
   // style
   ImGui::StyleColorsDark();
 
-  // -- load fonts (Consolas + Chinese subset) --
-  LoadFonts(18.0f);
+  // -- fonts: 16px base scaled by the display DPI --
+  // (fixed 18px looked oversized and ignored HiDPI; 16px @100% matches
+  // typical editor UIs, 125%/150% displays get proportionally bigger text)
+  float content_scale = 1.0f;
+  glfwGetWindowContentScale(window, &content_scale, nullptr);
+  if (content_scale <= 0.0f) content_scale = 1.0f;
+  ImGui::GetStyle().ScaleAllSizes(content_scale);
+  LoadFonts(16.0f * content_scale);
 
   // -- imgui backends --
   ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -194,9 +196,7 @@ int main(int, char**) {
 
   // Wire host callbacks (native file dialog)
   del_editor::EditorHostCallbacks cbs;
-  cbs.open_file = [](char const* filter) -> std::string {
-    return NativeOpenFileDialog(filter);
-  };
+  cbs.open_file = [](char const* filter) -> std::string { return NativeOpenFileDialog(filter); };
   editor.SetHostCallbacks(std::move(cbs));
 
   // -- main loop --
