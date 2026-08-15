@@ -41,43 +41,43 @@ struct EditorConfig {
   /// E.g. " (DEL)" → "Template (DEL)".
   std::string panel_title_suffix;
 
-  /// Rendering mode:
-  /// - true (default): standalone fullscreen. The editor is the only
-  ///   window in the context — a main menu bar plus a fullscreen
-  ///   dockspace fills the viewport (no wrapper window).
-  /// - false: embedding. The panels are rendered as top-level windows
-  ///   docked directly into the host's dockspace (`host_dockspace_id`),
-  ///   fully merging into the host's layout. The toolbar is omitted —
-  ///   the host provides its own chrome.
+  /// Whether the editor renders its own top-level window (toolbar +
+  /// internal dockspace + panels). false renders the bare panels instead,
+  /// docked directly into the host's dockspace (the host provides its own
+  /// chrome; only for hosts that want full layout ownership).
   bool own_window = true;
 
-  /// When own_window is false: the host dockspace the panels dock into on
-  /// first use. 0 (or a host without docking) degrades to plain floating
-  /// windows.
-  ///
-  /// Inter-docking UX (both allowed by default):
-  /// - Panels can be dragged out of the editor group and docked anywhere
-  ///   in the host's layout (or float) — the panels carry no docking
-  ///   restrictions.
-  /// - Host windows can be docked into the editor's panel group — panel
-  ///   nodes are ordinary dock nodes, so ImGui's default behaviour
-  ///   applies. No nested dockspace container is created on purpose:
-  ///   nested dockspaces fight the host's own layout management.
+  /// When own_window is true: fill the whole viewport (menu bar +
+  /// fullscreen dockspace, no wrapper window). Set false for a regular
+  /// dockable window — it carries the toolbar and an internal dockspace,
+  /// and docks into the host's layout on first use (`host_dockspace_id`).
+  /// Embedding hosts should use own_window = true, fullscreen = false so
+  /// the data-loading / compile toolbar stays reachable.
+  bool fullscreen = true;
+
+  /// When own_window is true and fullscreen is false: the host dockspace
+  /// the editor window docks into on first use. 0 (or a host without
+  /// docking) leaves the window floating.
   DockID host_dockspace_id = 0;
+
+  /// Initial editor window size (own_window + !fullscreen only; used while
+  /// floating — once docked the host layout controls the size).
+  float initial_width  = 900.0f;
+  float initial_height = 600.0f;
 };
 
 /// @brief The main editor instance.
 ///
-/// In its default configuration (own_window = true) it fills the viewport
-/// with a main menu bar and a fullscreen dockspace; all panels (Input,
-/// Template, Output, Monitor) live in that dockspace.
-///
-/// Rendering modes (see EditorConfig):
-/// - own_window = true (default): standalone fullscreen — menu bar +
+/// Modes (see EditorConfig):
+/// - own_window + fullscreen (default): standalone — main menu bar +
 ///   fullscreen dockspace over the whole viewport, no wrapper window.
-/// - own_window = false: embedding — panels dock straight into the host's
-///   dockspace (`host_dockspace_id`), fully merging into the host's layout.
-///   Panels and host windows can inter-dock freely (see host_dockspace_id).
+/// - own_window, !fullscreen: embeddable dockable window — toolbar +
+///   internal dockspace + panels; docks into the host's layout on first
+///   use (host_dockspace_id). This is the recommended embedding mode: the
+///   toolbar (load source/template, compile, panel toggles) stays usable
+///   and the panels stay grouped inside the editor window.
+/// - !own_window: bare panels docked straight into the host's dockspace
+///   (no toolbar — host provides its own chrome).
 /// - Host without ImGuiConfigFlags_DockingEnable: a stacked fallback layout
 ///   is rendered instead of a dockspace.
 ///
@@ -130,7 +130,7 @@ public:
   [[nodiscard]] DockID hostDockspace() const { return config_.host_dockspace_id; }
 
 private:
-  void RenderToolbar();
+  void RenderToolbar(bool main_menu_bar);
   void RenderPanels(DockID dockspace_id);
   void RenderPanelsFlat();
   void CompileAndExecute();

@@ -49,30 +49,63 @@ void EditorBootstrap::Render() {
   bool const docking_enabled = (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_DockingEnable) != 0;
 
   if (config_.own_window) {
-    // --- standalone fullscreen mode ---
-    // The editor is the only window in the context, so there is no wrapper
-    // window: a main menu bar plus a fullscreen dockspace fill the viewport.
-    RenderToolbar();
+    if (config_.fullscreen) {
+      // --- standalone fullscreen mode ---
+      // The editor is the only window in the context, so there is no wrapper
+      // window: a main menu bar plus a fullscreen dockspace fill the viewport.
+      RenderToolbar(true);
 
-    if (docking_enabled) {
-      // ID is derived at the top of the ID stack, unique per context.
-      DockID dockspace_id = ImGui::GetID("##EditorDockSpace");
-      ImGui::DockSpaceOverViewport(static_cast<ImGuiID>(dockspace_id), nullptr, ImGuiDockNodeFlags_PassthruCentralNode);
-      RenderPanels(dockspace_id);
+      if (docking_enabled) {
+        // ID is derived at the top of the ID stack, unique per context.
+        DockID dockspace_id = ImGui::GetID("##EditorDockSpace");
+        ImGui::DockSpaceOverViewport(
+            static_cast<ImGuiID>(dockspace_id),
+            nullptr,
+            ImGuiDockNodeFlags_PassthruCentralNode
+        );
+        RenderPanels(dockspace_id);
+      } else {
+        // Host without docking — fullscreen window with a stacked layout.
+        ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove
+                                      | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings
+                                      | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+        ImGui::SetNextWindowPos(ImGui::GetMainViewport()->WorkPos);
+        ImGui::SetNextWindowSize(ImGui::GetMainViewport()->WorkSize);
+        if (ImGui::Begin(config_.window_name.c_str(), nullptr, window_flags)) {
+          RenderPanelsFlat();
+        }
+        ImGui::End();
+      }
     } else {
-      // Host without docking — fullscreen window with a stacked layout.
-      ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove
-                                    | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings
-                                    | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-      ImGui::SetNextWindowPos(ImGui::GetMainViewport()->WorkPos);
-      ImGui::SetNextWindowSize(ImGui::GetMainViewport()->WorkSize);
-      if (ImGui::Begin(config_.window_name.c_str(), nullptr, window_flags)) {
+      // --- embeddable dockable window (recommended embedding mode) ---
+      // A regular window carrying the toolbar + an internal dockspace; it
+      // docks into the host's layout on first use so the toolbar (load /
+      // compile / panel toggles) and the grouped panels stay reachable.
+      ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse;
+      if (docking_enabled && config_.host_dockspace_id != 0) {
+        ImGui::SetNextWindowDockID(static_cast<ImGuiID>(config_.host_dockspace_id), ImGuiCond_FirstUseEver);
+      }
+      ImGui::SetNextWindowSize(ImVec2(config_.initial_width, config_.initial_height), ImGuiCond_FirstUseEver);
+
+      if (!ImGui::Begin(config_.window_name.c_str(), &open_, window_flags)) {
+        ImGui::End();
+        return;
+      }
+
+      RenderToolbar(false);
+
+      if (docking_enabled) {
+        DockID dockspace_id = ImGui::GetID("##EditorDockSpace");
+        ImGui::DockSpace(static_cast<ImGuiID>(dockspace_id), ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
+        RenderPanels(dockspace_id);
+      } else {
         RenderPanelsFlat();
       }
+
       ImGui::End();
     }
   } else {
-    // --- host-owned layout: panels dock into the host's dockspace ----
+    // --- host-owned layout: bare panels dock into the host's dockspace ----
     // No wrapper window, no toolbar — the host provides its own chrome and
     // controls the panels through SetPanelOpen / LoadSourceText & co.
     // Panels carry no docking restrictions: they can be dragged out of the
@@ -128,9 +161,9 @@ void EditorBootstrap::RenderPanelsFlat() {
 
 // --- toolbar ---------------------------------------------------------------
 
-void EditorBootstrap::RenderToolbar() {
-  // 全屏模式的全局菜单栏 (own_window=true 专用; 嵌入模式不渲染工具栏)
-  if (!ImGui::BeginMainMenuBar()) return;
+void EditorBootstrap::RenderToolbar(bool main_menu_bar) {
+  // main_menu_bar: 全屏模式用全局菜单栏; 窗口模式用窗口内菜单栏
+  if (main_menu_bar ? !ImGui::BeginMainMenuBar() : !ImGui::BeginMenuBar()) return;
 
   // ---- file loading ----
   // Source JSON
@@ -216,7 +249,11 @@ void EditorBootstrap::RenderToolbar() {
   toggle("Output", show_output_, output_panel_.open);
   toggle("Monitor", show_monitor_, monitor_panel_.open);
 
-  ImGui::EndMainMenuBar();
+  if (main_menu_bar) {
+    ImGui::EndMainMenuBar();
+  } else {
+    ImGui::EndMenuBar();
+  }
 }
 
 // --- public helpers --------------------------------------------------------
