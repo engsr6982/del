@@ -77,6 +77,12 @@ public:
   // put(container, key/index, value) -> container
   static nlohmann::json Put(Arguments const& args, EvaluationContext& ctx, ExprEvaluator const& eval);
 
+  // get(obj, key) -> value
+  static nlohmann::json Get(Arguments const& args, EvaluationContext& ctx, ExprEvaluator const& eval);
+
+  // at(array, index) -> value
+  static nlohmann::json At(Arguments const& args, EvaluationContext& ctx, ExprEvaluator const& eval);
+
   // reduce(array, init, (acc, item, idx) -> ...) -> T
   static nlohmann::json Reduce(Arguments const& args, EvaluationContext& ctx, ExprEvaluator const& eval);
 

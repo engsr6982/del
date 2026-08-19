@@ -26,6 +26,8 @@ void BultinFunction::RegisterAll(SymbolTable& table) {
   table.Register<&Map>("map");
   table.Register<&MapObject>("map_object");
   table.Register<&Put>("put");
+  table.Register<&Get>("get");
+  table.Register<&At>("at");
   table.Register<&Reduce>("reduce");
   table.Register<&Filter>("filter");
   table.Register<&Split>("split");
@@ -314,6 +316,34 @@ nlohmann::json BultinFunction::Put(Arguments const& args, EvaluationContext& ctx
     throw RuntimeError("put requires an object or array as the first argument");
   }
   return container;
+}
+
+// get(obj, key) -> value
+// 与 @/ 指针语义一致：键缺失时静默求值为 null；obj 为 null 时同样返回 null（null 传播）
+nlohmann::json BultinFunction::Get(Arguments const& args, EvaluationContext& ctx, ExprEvaluator const& eval) {
+  if (args.size() != 2) throw RuntimeError("get expects exactly 2 arguments (object, key)");
+  auto container = eval(*args[0], ctx);
+  auto key       = eval(*args[1], ctx);
+  if (container.is_null()) return nullptr; // null 传播
+  if (!container.is_object()) throw RuntimeError("get's first argument must be an object, but got: " + container.dump());
+  if (!key.is_string()) throw RuntimeError("get's second argument must be a string key");
+  auto it = container.find(key.template get<std::string>());
+  if (it == container.end()) return nullptr; // 缺失键静默为 null
+  return it.value();
+}
+
+// at(array, index) -> value
+// 与 @/ 指针语义一致：越界/负下标静默求值为 null；array 为 null 时同样返回 null（null 传播）
+nlohmann::json BultinFunction::At(Arguments const& args, EvaluationContext& ctx, ExprEvaluator const& eval) {
+  if (args.size() != 2) throw RuntimeError("at expects exactly 2 arguments (array, index)");
+  auto arr_val = eval(*args[0], ctx);
+  auto idx_val = eval(*args[1], ctx);
+  if (arr_val.is_null()) return nullptr; // null 传播
+  if (!arr_val.is_array()) throw RuntimeError("at's first argument must be an array, but got: " + arr_val.dump());
+  if (!idx_val.is_number_integer()) throw RuntimeError("at's second argument must be an integer index");
+  auto idx = idx_val.template get<int64_t>();
+  if (idx < 0 || static_cast<uint64_t>(idx) >= arr_val.size()) return nullptr; // 越界静默为 null
+  return arr_val[static_cast<size_t>(idx)];
 }
 
 // reduce(array, init, (acc, item, idx) -> ...) -> T

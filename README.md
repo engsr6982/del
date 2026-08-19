@@ -363,6 +363,54 @@ object() |> put('foo', 'bar') // {"foo":"bar"}
 array() |> put(0, 'foo') // ["foo"]
 ```
 
+#### `get` - 获取对象中指定键的值
+
+- 原型: `get(obj, key) -> any`
+  - `obj`: `object`
+    - 要查找的对象。
+  - `key`: `string`
+    - 键名。
+- 返回: `any`
+  - 对象中指定键对应的值。
+
+> ⚠️ 语义与 `@/` 指针保持一致：
+>
+> - 键**不存在**时静默求值为 `null`，不抛出异常。
+> - `obj` 本身为 `null` 时直接返回 `null`。
+> - `obj` 为非对象非 `null` 类型时抛出运行时异常。
+
+```del
+get(land, 'range')
+// 等价于静态路径 @/land/range 的按键动态查找
+
+// 链式访问 + 空值兜底
+get(get(land, 'settings'), 'nickname') ?? 'Unnamed territories'
+```
+
+#### `at` - 获取数组中指定下标的值
+
+- 原型: `at(array, index) -> any`
+  - `array`: `array`
+    - 要查找的数组。
+  - `index`: `number`
+    - 下标（必须为整数）。
+- 返回: `any`
+  - 数组中指定下标对应的元素。
+
+> ⚠️ 语义与 `@/` 指针保持一致：
+>
+> - 下标**越界或为负数**时静默求值为 `null`，不抛出异常。
+> - `array` 本身为 `null` 时直接返回 `null`。
+> - `array` 为非数组非 `null` 类型时抛出运行时异常。
+
+```del
+at(get(get(land, 'range'), 'start_position'), 0)
+// 返回: 100（若缺失则返回 null）
+
+// 配合 ?? 兜底，可安全书写嵌套取值链
+at(get(get(land, 'range'), 'start_position'), 0) ?? 0
+```
+
 #### `reduce` - 遍历数组并返回一个新容器
 
 - 原型: `reduce(array, init, lambda) -> T`
