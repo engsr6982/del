@@ -8,6 +8,7 @@
 #include "imgui.h"
 
 #include "del/exception.h"
+#include "del/template_engine.h"
 
 #include <nlohmann/json.hpp>
 
@@ -30,7 +31,11 @@ static std::string JsonToPrettyString(nlohmann::json const& j) {
 
 // --- EditorBootstrap --------------------------------------------------------
 
-EditorBootstrap::EditorBootstrap(EditorConfig config) : config_(std::move(config)) {
+EditorBootstrap::EditorBootstrap(EditorConfig config) : EditorBootstrap(nullptr, std::move(config)) {}
+
+EditorBootstrap::EditorBootstrap(std::unique_ptr<del::TemplateEngine> engine, EditorConfig config)
+: config_(std::move(config)),
+  engine_(engine ? std::move(engine) : std::make_unique<del::TemplateEngine>()) {
   // Panel titles: short readable names by default; hosts that need unique
   // window names add a suffix via panel_title_suffix.
   input_title_   = std::string(InputPanel::kPanelName) + config_.panel_title_suffix;
@@ -42,6 +47,10 @@ EditorBootstrap::EditorBootstrap(EditorConfig config) : config_(std::move(config
   input_panel_.SetChangeCallback(mark_dirty);
   editor_panel_.SetChangeCallback(mark_dirty);
 }
+
+EditorBootstrap::~EditorBootstrap() = default;
+
+void EditorBootstrap::SetTemplateEngine(std::unique_ptr<del::TemplateEngine> engine) { engine_ = std::move(engine); }
 
 void EditorBootstrap::Render() {
   if (!open_) return;
@@ -338,7 +347,7 @@ void EditorBootstrap::RunPipeline() {
   del::CompiledTemplate compiled;
   auto                  t0 = chr::high_resolution_clock::now();
   try {
-    compiled = engine_.Compile(template_json);
+    compiled = engine_->Compile(template_json);
   } catch (del::SyntaxError& e) {
     monitor_panel_.AddError(e.what());
     monitor_panel_.SetMetrics({});
@@ -356,7 +365,7 @@ void EditorBootstrap::RunPipeline() {
   // --- 4. execute (timed) ---
   nlohmann::json result;
   try {
-    result = engine_.Execute(compiled, source_json);
+    result = engine_->Execute(compiled, source_json);
   } catch (del::RuntimeError& e) {
     auto t2            = chr::high_resolution_clock::now();
     metrics.execute_us = chr::duration_cast<chr::microseconds>(t2 - t1).count();

@@ -1,16 +1,19 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <string_view>
-
-#include "del/template_engine.h"
 
 #include "del-editor/dock_id.h"
 #include "del-editor/panel/editor_panel.h"
 #include "del-editor/panel/input_panel.h"
 #include "del-editor/panel/monitor_panel.h"
 #include "del-editor/panel/output_panel.h"
+
+namespace del {
+class TemplateEngine;
+}
 
 namespace del_editor {
 
@@ -88,14 +91,26 @@ public:
   /// (e.g. for docking the editor window into a parent dockspace).
   static constexpr const char* kWindowName = "DEL Live Editor";
 
+  /// Creates the editor with an internally-built default DEL engine.
   explicit EditorBootstrap(EditorConfig config = {});
-  ~EditorBootstrap() = default;
+
+  /// Takes ownership of a host-prepared DEL engine (e.g. one with custom
+  /// functions registered). A null engine falls back to a default instance.
+  explicit EditorBootstrap(std::unique_ptr<del::TemplateEngine> engine, EditorConfig config = {});
+
+  ~EditorBootstrap();
 
   EditorBootstrap(EditorBootstrap const&)            = delete;
   EditorBootstrap& operator=(EditorBootstrap const&) = delete;
 
   /// Attach host callbacks (native file dialogs, etc.).
   void SetHostCallbacks(EditorHostCallbacks cb) { callbacks_ = std::move(cb); }
+
+  /// Replace the internal DEL engine with one the host has prepared
+  /// (e.g. an instance with custom functions registered). The editor takes
+  /// ownership of the passed engine. Call before the first Render() that
+  /// compiles/executes anything.
+  void SetTemplateEngine(std::unique_ptr<del::TemplateEngine> engine);
 
   /// Render the entire editor. Call once per frame inside an ImGui context.
   void Render();
@@ -152,8 +167,8 @@ private:
   EditorHostCallbacks   callbacks_;
   std::function<void()> compile_callback_;
 
-  // DEL engine
-  del::TemplateEngine engine_;
+  // DEL engine (owned; default instance unless one is injected via ctor)
+  std::unique_ptr<del::TemplateEngine> engine_;
 
   // Panels
   InputPanel   input_panel_;
