@@ -2,14 +2,28 @@
 #include "context.h"
 #include "exception.h"
 #include "symbol_table.h"
+
+#include <format>
 #include <iostream>
+
 
 namespace del {
 
 inline void EnsureBoolean(nlohmann::json const& v, std::string_view context) {
-  if (!v.is_boolean()) {
-    throw RuntimeError(std::string(context) + " requires a boolean operand, but got: " + v.dump());
+  if (!v.is_boolean()) [[unlikely]] {
+    throw RuntimeError(std::format("{} requires a boolean operand, but got: {}", context, v.dump()));
   }
+}
+
+inline bool ReadCondition(nlohmann::json const& v, std::string_view context) {
+  // Implicit Conversion
+  if (v.is_null()) {
+    return false;
+  }
+
+  // Strict type matching
+  EnsureBoolean(v, context);
+  return v.get<bool>();
 }
 
 inline void EnsureNumber(nlohmann::json const& v, std::string_view context) {
@@ -77,6 +91,9 @@ PointerNode::PointerNode(bool is_source, std::string path) : is_source_(is_sourc
 
 nlohmann::json PointerNode::Evaluate(EvaluationContext& ctx) const {
   const auto& root = is_source_ ? ctx.source : ctx.target;
+  if (path_ == "/") {
+    return root;
+  }
   try {
     auto json_ptr = nlohmann::json::json_pointer(path_);
     if (root.contains(json_ptr)) {
@@ -216,8 +233,7 @@ TernaryNode::TernaryNode(
 
 nlohmann::json TernaryNode::Evaluate(EvaluationContext& ctx) const {
   auto cond_val = cond_->Evaluate(ctx);
-  EnsureBoolean(cond_val, "Ternary condition");
-  if (cond_val.get<bool>()) {
+  if (ReadCondition(cond_val, "Ternary condition")) {
     return true_expr_->Evaluate(ctx);
   } else {
     return false_expr_->Evaluate(ctx);
